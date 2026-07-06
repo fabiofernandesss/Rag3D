@@ -1,0 +1,18 @@
+{
+  "_comentario": "Copie para .claude/launch.json e preencha OPENAI_API_KEY. NUNCA comite a chave — .claude/launch.json está no .gitignore.",
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "rag3d-web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["rag3d-js/web/server.js"],
+      "port": 5178,
+      "env": {
+        "RAG3D_PG": "postgresql://postgres:rag3d@localhost:5433/rag3d",
+        "OPENAI_BASE_URL": "https://api.deepseek.com",
+        "OPENAI_API_KEY": "COLOQUE_SUA_CHAVE_AQUI",
+        "RAG3D_LLM_MODEL": "deepseek-chat"
+      }
+    }
+  ]
+}

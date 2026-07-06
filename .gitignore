@@ -1,0 +1,32 @@
+# --- SEGREDOS: nunca commitar ---
+# a launch.json local contém a chave da API (DeepSeek). Use launch.json.example.
+.claude/launch.json
+.env
+.env.local
+*.key
+secrets.*
+
+# --- Python ---
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# --- Node ---
+node_modules/
+npm-debug.log*
+
+# --- dados / índice local ---
+.rag3d/
+.trirag/
+*.db
+*.db-wal
+*.db-shm
+# (o bundle web em rag3d-js/web/public/bundle.js É commitado para uso imediato;
+#  regenere com `npm run build:web` se editar o frontend)
+
+# --- SO ---
+.DS_Store

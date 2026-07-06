@@ -1,0 +1,20 @@
+# Postgres COMUM para o RAG3D — sem pgvector, sem extensão nenhuma.
+# O backend holográfico (rag3d/pgstore.py) usa só BIT/INT[]/BYTEA nativos.
+#
+#   docker compose up -d
+#   export RAG3D_PG=postgresql://postgres:rag3d@localhost:5433/rag3d
+#   python3 -m rag3d ingest docs/
+#   python3 -m rag3d chat
+services:
+  db:
+    image: postgres:16
+    container_name: rag3d-pg
+    environment:
+      POSTGRES_PASSWORD: rag3d
+      POSTGRES_DB: rag3d
+    ports:
+      - "5433:5432"
+    volumes:
+      - rag3d_pg:/var/lib/postgresql/data
+volumes:
+  rag3d_pg:

@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rag3d"
+version = "0.1.0"
+description = "RAG3D — RAG tridimensional: 3 eixos de busca, fusão por interferência quântica, Hologramas Textuais (vetores em Postgres puro, sem pgvector), memória de conversa infinita, qualquer LLM. Índice compatível bit a bit com a versão JavaScript."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Fabio Fernandes Jesus", email = "fabiofernandesjesus@hotmail.com" }]
+keywords = ["rag", "rag3d", "retrieval", "postgres", "no-pgvector", "quantum-fusion", "multilingual", "llm", "deepseek"]
+
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+bge = ["FlagEmbedding>=1.2"]
+postgres = ["psycopg[binary]>=3.1"]
+
+[project.urls]
+Homepage = "https://github.com/fabiofernandesss/Rag3D"
+
+[project.scripts]
+rag3d = "rag3d.cli:main"
+
+[tool.setuptools]
+packages = ["rag3d"]
