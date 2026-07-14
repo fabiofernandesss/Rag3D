@@ -30,6 +30,21 @@ Funciona em **qualquer língua** e o mesmo índice serve **Python e JavaScript**
 
 ---
 
+## 📑 Índice
+
+[O método](#-o-método-sem-enrolação) ·
+[Arquitetura](#️-arquitetura) ·
+[Começando](#-começando-3-minutos) ·
+[App web](#opção-a--app-web-upload-de-pdftxt--chat-) ·
+[Configuração](#️-configuração-variáveis-de-ambiente) ·
+[Testes](#-rodando-os-testes) ·
+[Avaliação e ablação](#-avaliação-e-ablação-honesto) ·
+[Por que sem banco vetorial](#-por-que-sem-banco-vetorial) ·
+[Limitações e roadmap](#-limitações-e-roadmap) ·
+[Honestidade](#-honestidade-científica)
+
+---
+
 ## ✨ Em uma frase
 
 > RAG3D representa cada texto em **3 eixos** (semântico + léxico + estrutural), funde os rankings com **interferência quântica**, guarda tudo como **Hologramas Textuais** que cabem num banco de dados comum, e responde com defesas de fidelidade pensadas para **documentos normativos** (editais, leis, contratos).
@@ -211,7 +226,8 @@ rag3d-js/
   src/            port JavaScript (mesmos módulos, hologramas idênticos)
   web/            app web: server.js (Express) + client React (upload + chat streaming)
   test/           suíte JS + testes cross-language
-tests/            suíte Python + benchmark de fusão + scripts cross-language
+tests/            suíte Python + bench_fusion.py + beir_ablation.py + scripts cross-language
+BENCHMARKS.md     ablação honesta + roteiro de avaliação BEIR
 docker-compose.yml   Postgres comum (sem pgvector)
 ```
 
@@ -230,6 +246,94 @@ cd rag3d-js && node --test 'test/*.test.mjs'
 # Cross-language (prova Hamming 0/1024)
 python3 tests/xlang_ingest.py && node rag3d-js/test/xlang_parity.mjs
 ```
+
+---
+
+## 📊 Avaliação e ablação (honesto)
+
+**Resumo:** no harness sintético embutido, **a fusão quântica empata com o RRF**
+— não há, hoje, evidência de que a supere. Detalhes completos em
+[**BENCHMARKS.md**](BENCHMARKS.md). Isto é registrado de propósito, não escondido.
+
+### Ablação de fusão (reproduzível)
+
+```bash
+python3 tests/bench_fusion.py 1800
+```
+
+| estratégia | Recall@5 | MRR |
+|---|:--:|:--:|
+| eixo semântico | 83.3% | 0.833 |
+| eixo léxico | 83.3% | 0.750 |
+| eixo estrutural | 83.3% | 0.833 |
+| CombSUM (λ=0) | 83.3% | 0.833 |
+| **quântica (λ=1)** | 83.3% | 0.833 |
+| RRF (k=60) | 83.3% | 0.833 |
+
+Quântica = RRF = CombSUM. `λ=0` (sem interferência) dá o mesmo que `λ=1` — coerente
+com a garantia de que a fusão colapsa no clássico. **Use RRF como padrão de
+produção**; a fusão quântica é uma opção falsificável, não uma alegação de vitória.
+
+> O corpus sintético é fácil (agulhas lexicalmente únicas), então todo método
+> acha o alvo e nada os separa. Diferenciar de verdade exige encoder semântico
+> real + base pública.
+
+### Ablação em base pública BEIR (BGE-M3, nDCG@10)
+
+Para o teste que a comunidade aceita — encoder real numa base rotulada:
+
+```bash
+# 1. dependências pesadas (BGE-M3 = ~2.3GB; precisa de ~3GB de RAM livre)
+python3 -m venv .venv && .venv/bin/pip install FlagEmbedding
+
+# 2. dataset BEIR (ex.: nfcorpus — 3.6k docs, 323 queries)
+mkdir -p bench_data && cd bench_data
+curl -sLO https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfcorpus.zip && unzip -q nfcorpus.zip && cd ..
+
+# 3. ablação completa (eixos isolados · CombSUM · quântica λ=0/0.5/1 · RRF), nDCG@10 + Recall@10
+.venv/bin/python tests/beir_ablation.py nfcorpus
+```
+
+O runner ([`tests/beir_ablation.py`](tests/beir_ablation.py)) ingere o corpus com
+o **BGE-M3**, roda as queries oficiais e reporta nDCG@10/Recall@10 por estratégia,
+na **mesma recuperação** — resposta direta para *"a fusão quântica ajuda ou é só
+RRF com passos extras?"*.
+
+---
+
+## 🆚 Por que sem banco vetorial
+
+|  | RAG3D | pgvector | Milvus / Qdrant / Pinecone |
+|---|---|---|---|
+| Extensão / serviço extra | **nenhum** (Postgres puro) | extensão pgvector | serviço/infra dedicada |
+| Busca vetorial | `bit_count` + `INT[]`/`BYTEA` nativos | `<->` operador da extensão | índice ANN próprio |
+| Multilíngue (100+) | ✅ BGE-M3 | depende do encoder | depende do encoder |
+| Mesmo índice em 2 linguagens | ✅ Python **e** JS (bit a bit) | — | — |
+| Fricção operacional | mínima (qualquer Postgres gerenciado) | média | alta |
+| ANN em escala de milhões | ⚠️ ainda não (scan + facetas) | ✅ HNSW | ✅ |
+
+**Posicionamento honesto:** o forte do RAG3D é **eliminar o banco vetorial** e a
+**portabilidade Python/JS**, não vencer um HNSW em recall a milhões de vetores.
+Para corpora de milhares a dezenas de milhares de chunks (a maioria dos casos de
+doc-QA), o scan holográfico é rápido o bastante (~11 ms/consulta medido).
+
+---
+
+## 🧭 Limitações e roadmap
+
+**O que ainda não está provado** (e não escondemos):
+
+- Fusão quântica **> RRF** em benchmark público — o `beir_ablation.py` existe
+  justamente para medir isso; rode e veja.
+- Curvas recall × latência contra pgvector/FAISS/Qdrant.
+- Avaliação estatística repetida (vários datasets, intervalos de confiança).
+
+**Roadmap:**
+
+- [ ] Índice **ANN** sobre as assinaturas (multi-probe LSH / HNSW) para escalar a milhões.
+- [ ] Rodar BEIR + MIRACL com BGE-M3 e publicar os números (bons ou ruins).
+- [ ] Reranker cross-encoder nativo (`bge-reranker-v2-m3`).
+- [ ] Extração de fatos ADD/UPDATE/DELETE na memória (padrão Mem0).
 
 ---
 
