@@ -30,3 +30,6 @@ npm-debug.log*
 
 # --- SO ---
 .DS_Store
+
+# dataset BEIR baixado (baixável, não versionar)
+bench_data/
