@@ -1,5 +1,5 @@
 // Busca tridimensional — espelha trirag/retrieve.py. Três frentes + fusão.
-import { fuse } from "./fusion.js";
+import { fermionicSelect, fuse } from "./fusion.js";
 
 const SYS_EXPAND =
   "Você reescreve consultas para busca em documentos normativos (editais, leis). " +
@@ -114,9 +114,12 @@ export class TriRetriever {
     const channels = { semantico: dense, lexico: sparse, estrutural: struct };
 
     const doRerank = this.reranker && this.reranker.available();
-    const fuseK = doRerank ? Math.max(topK, this.cfg.rerankPool) : topK;
+    const doDiv = (this.cfg.diversity || 0) > 0;
+    let fuseK = topK;
+    if (doRerank) fuseK = Math.max(fuseK, this.cfg.rerankPool);
+    if (doDiv) fuseK = Math.max(fuseK, this.cfg.diversityPool);
     const fusedHits = fuse(channels, this.cfg.channelWeights, fuseK, this.cfg.fusion,
-      this.cfg.interferenceStrength, this.cfg.rrfK);
+      this.cfg.interferenceStrength, this.cfg.rrfK, this.cfg.coherenceStrength);
 
     // hidratação em lote: uma prefetch p/ fundido + as 3 visões juntas
     const fusedIds = fusedHits.map((h) => h.chunkId);
@@ -132,7 +135,18 @@ export class TriRetriever {
       row.score = h.score; row.classical = h.classical; row.interference = h.interference;
       row.channels = h.channels; row.perChannel = h.perChannel;
     }
-    fused = doRerank ? await this.reranker.rerank(query, fused, topK) : fused.slice(0, topK);
+    if (doRerank) fused = await this.reranker.rerank(query, fused, doDiv ? this.cfg.diversityPool : topK);
+
+    // seleção fermiônica (MAP-DPP): escolhe o CONJUNTO de k, sem redundância
+    if (doDiv && fused.length > topK) {
+      const pool = fused.slice(0, this.cfg.diversityPool);
+      const vecs = await this.store.denseVecs(pool.map((h) => h.id));
+      const keep = fermionicSelect(pool.map((h) => [h.id, h.score ?? 0]), vecs, topK, this.cfg.diversity);
+      const order = new Map(keep.map((id, i) => [id, i]));
+      fused = pool.filter((h) => order.has(h.id)).sort((a, b) => order.get(a.id) - order.get(b.id));
+    } else {
+      fused = fused.slice(0, topK);
+    }
     await this._stitch(fused); // costura de vizinhos no top-k final
 
     const views = {};

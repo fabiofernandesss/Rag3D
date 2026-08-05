@@ -32,13 +32,43 @@ function phases(ranking) {
   return m;
 }
 
-export function quantumFuse(channels, weights, topK, interferenceStrength = 1.0) {
+// Coerência do canal — quão DECIDIDO ele está nesta consulta (pureza Tr(rho²)
+// da distribuição de pontuações, reescalada para [0,1]). Espelha fusion.py.
+// EXPERIMENTAL — desligado por padrão. Tr(rho²) diagonal É a entropia de
+// Rényi-2 (não é conceito novo); decisão de pontuação prediz mal QUAL canal
+// está certo; e canal com poucos candidatos parece trivialmente decidido —
+// por isso o piso de 3 candidatos. Ver fusion.py para a nota completa.
+export function coherence(normMap) {
+  const vals = [...normMap.values()].filter((s) => s > 0);
+  const n = vals.length;
+  if (n <= 2) return 0.0;
+  const total = vals.reduce((a, b) => a + b, 0);
+  if (total <= 0) return 0.0;
+  let purity = 0;
+  for (const v of vals) { const p = v / total; purity += p * p; }
+  return Math.max(0, Math.min(1, (purity * n - 1) / (n - 1)));
+}
+
+function coherentWeights(base, norm, strength) {
+  if (strength <= 0) return base;
+  const kappa = {}; let kmax = 0;
+  for (const name of Object.keys(norm)) { kappa[name] = coherence(norm[name]); kmax = Math.max(kmax, kappa[name]); }
+  if (kmax <= 0) return base;
+  const out = {};
+  for (const name of Object.keys(norm)) {
+    out[name] = (base[name] ?? 1.0) * ((1 - strength) + strength * (kappa[name] / kmax));
+  }
+  return out;
+}
+
+export function quantumFuse(channels, weights, topK, interferenceStrength = 1.0, coherenceStrength = 0.0) {
   const names = Object.keys(channels);
   const norm = {}, phase = {};
   for (const name of names) {
     norm[name] = minmax(channels[name]);
     phase[name] = phases(channels[name]);
   }
+  weights = coherentWeights(weights, norm, coherenceStrength);
   const allIds = new Set();
   for (const name of names) for (const [cid] of channels[name]) allIds.add(cid);
 
@@ -93,11 +123,85 @@ export function rrfFuse(channels, weights, topK, rrfK = 60) {
     }));
 }
 
-export function fuse(channels, weightsArr, topK, method = "quantum", interferenceStrength = 1.0, rrfK = 60) {
+export function fuse(channels, weightsArr, topK, method = "quantum", interferenceStrength = 1.0, rrfK = 60, coherenceStrength = 0.0) {
   const names = Object.keys(channels);
-  const w = {};
+  let w = {};
   names.forEach((n, i) => (w[n] = weightsArr[i]));
+  if (coherenceStrength > 0) {
+    const norm = {};
+    for (const n of names) norm[n] = minmax(channels[n]);
+    w = coherentWeights(w, norm, coherenceStrength);
+  }
   return method === "rrf"
     ? rrfFuse(channels, w, topK, rrfK)
     : quantumFuse(channels, w, topK, interferenceStrength);
+}
+
+// ---------------------------------------------- seleção fermiônica (DPP) ---
+//
+// A fusão acima é BOSÔNICA: amplitudes somam, concordância amplifica — decide
+// QUAIS documentos são relevantes. Falta decidir QUAL CONJUNTO devolver.
+//
+// Um conjunto de k documentos é um estado de k partículas. Se for
+// ANTISSIMÉTRICO (determinante de Slater), a amplitude é
+//     |psi_S|² = det(Gram(v_S)) = Vol²(v_1..v_k)
+// Dois documentos idênticos = duas partículas no mesmo estado: o determinante
+// zera (EXCLUSÃO DE PAULI). Redundância proibida por construção.
+//
+// É um Determinantal Point Process (Kulesza & Taskar); o argmax sai do guloso
+// com atualização de Cholesky em O(k²N) (Chen et al. 2018). Espelha fusion.py
+// bit a bit (mesmo float64, mesma ordem de operações).
+export function fermionicSelect(items, vectors, topK, diversity = 0.0) {
+  const ids = items.map(([i]) => i);
+  const n = ids.length;
+  if (diversity <= 0 || n <= 1 || topK <= 0) return ids.slice(0, topK);
+  const k = Math.min(topK, n);
+  const eps = 1e-12;
+
+  const rel = items.map(([, s]) => s);
+  const lo = Math.min(...rel), hi = Math.max(...rel);
+  const logQ2 = rel.map((s) => 2.0 * Math.log(Math.max(hi - lo > eps ? (s - lo) / (hi - lo) : 1.0, eps)));
+
+  let dim = 0;
+  for (const v of vectors.values()) if (v) { dim = v.length; break; }
+  const V = ids.map((cid) => {
+    const v = vectors.get(cid);
+    return v && v.length === dim ? v : new Float64Array(dim);
+  });
+
+  const theta = Math.max(0, Math.min(1, 1.0 - diversity));
+  const d2 = new Float64Array(n).fill(1.0);          // volume residual
+  const C = Array.from({ length: n }, () => new Float64Array(k));
+  const avail = new Array(n).fill(true);
+  const chosen = [];
+
+  for (let t = 0; t < k; t++) {
+    let best = -Infinity, j = -1;
+    for (let i = 0; i < n; i++) {
+      if (!avail[i]) continue;
+      const g = theta * logQ2[i] + (1 - theta) * Math.log(Math.max(d2[i], eps));
+      if (g > best) { best = g; j = i; }
+    }
+    if (j < 0) break;
+    // sem volume restante: completa por relevância pura (Cholesky instável)
+    if (d2[j] < eps) {
+      for (let i = 0; i < n && chosen.length < k; i++) if (avail[i]) chosen.push(ids[i]);
+      return chosen.slice(0, k);
+    }
+    chosen.push(ids[j]);
+    avail[j] = false;
+    if (chosen.length === k) break;
+    const sj = Math.sqrt(Math.max(d2[j], eps));
+    for (let i = 0; i < n; i++) {
+      if (!avail[i]) continue;
+      let dot = 0;
+      for (let d = 0; d < dim; d++) dot += V[i][d] * V[j][d];   // similaridade i·j
+      let proj = 0;
+      for (let s = 0; s < t; s++) proj += C[i][s] * C[j][s];
+      const e = (dot - proj) / sj;
+      C[i][t] = e;
+      d2[i] = Math.max(d2[i] - e * e, 0);
+    }
+  }
+  return chosen;
 }

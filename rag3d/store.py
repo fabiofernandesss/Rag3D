@@ -141,6 +141,16 @@ class TriStore:
         by_id = {r[0]: dict(zip(cols, r)) for r in rows}
         return [by_id[i] for i in ids if i in by_id]
 
+    def dense_vecs(self, ids: Sequence[int]) -> Dict[int, np.ndarray]:
+        """Vetores densos dos ids (para a seleção fermiônica/DPP)."""
+        if not ids:
+            return {}
+        q = ",".join("?" * len(ids))
+        rows = self.db.execute(
+            f"SELECT chunk_id, data FROM dvecs WHERE chunk_id IN ({q})", list(ids)
+        ).fetchall()
+        return {int(cid): np.frombuffer(blob, dtype=np.float32) for cid, blob in rows}
+
     def touch_access(self, ids: Sequence[int], turn_no: int) -> None:
         """Recência conta do último USO, não da criação (fórmula de Stanford)."""
         if not ids:

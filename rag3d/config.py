@@ -54,6 +54,15 @@ class TriRagConfig:
 
     # --- fusão quântica ---
     interference_strength: float = 1.0  # 0 = clássico (sem interferência); 1 = interferência plena
+    # coerência: modula o peso de cada eixo pela PUREZA da sua distribuição de
+    # pontuações nesta consulta (canal indeciso pesa menos). 0 = pesos fixos.
+    coherence_strength: float = 0.0
+    # seleção fermiônica (MAP-DPP / determinante de Slater): escolhe o CONJUNTO
+    # final maximizando relevância × volume — dois trechos quase idênticos não
+    # ocupam duas vagas (exclusão de Pauli). 0 = ranking puro (comportamento
+    # clássico); 0.3-0.6 = cobertura melhor sem perder o topo.
+    diversity: float = 0.35
+    diversity_pool: int = 40           # candidatos considerados na seleção
 
     # --- memória de conversa infinita ---
     memory_budget_tokens: int = 6000    # orçamento de contexto recuperado por turno

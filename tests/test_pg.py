@@ -6,6 +6,7 @@ Requer container rodando:
 """
 from __future__ import annotations
 
+import os
 import sys
 import tempfile
 import time
@@ -20,7 +21,7 @@ from rag3d.engine import TriRag
 from rag3d.holo import HOLO_BITS, Holographer
 from rag3d.llm import NoLLM
 
-DSN = "postgresql://postgres:rag3d@localhost:5433/rag3d"
+DSN = os.environ.get("RAG3D_PG", "postgresql://postgres:rag3d@localhost:5433/rag3d")
 FAILS = []
 
 

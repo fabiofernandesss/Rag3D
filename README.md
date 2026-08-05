@@ -80,6 +80,31 @@ P(d)   = |Σ_c a_c(d)|²  =  Σ clássico  +  Σ interferência
 - Eixos que **discordam** → interferência **destrutiva** → o documento desce.
 - Botão `λ` (interference_strength): `λ=0` colapsa no fusão clássica (CombSUM) — é a trava de segurança e a ablação. RRF (k=60) vem embutido como linha de base.
 
+### 2b. Seleção fermiônica — a outra metade da física
+
+A fusão acima é **bosônica**: amplitudes somam, concordância amplifica. Ela
+decide *quais* documentos são relevantes — mas não *qual conjunto* devolver.
+Sem isso, o top-k enche de quase-duplicatas e os outros fatos ficam de fora.
+
+Entra o princípio oposto. Um conjunto de k documentos é um estado de k
+partículas; se ele for **antissimétrico** (determinante de Slater):
+
+```
+|ψ_S|² = det(Gram(v_S)) = Vol²(v_1 … v_k)
+```
+
+Dois documentos idênticos são duas partículas no mesmo estado → o determinante
+zera → **exclusão de Pauli**. Redundância é proibida por construção, não por
+heurística. Formalmente é um *Determinantal Point Process*, resolvido pelo
+guloso com Cholesky incremental em O(k²N) (Chen et al., NeurIPS 2018).
+
+**Medido:** cobertura de fatos distintos no top-k vai de **46.7% → 100%**, sem
+perder o rank-1 (100% relevante) e sem regressão onde não há redundância.
+Ligado por padrão (`diversity = 0.35`); `0` reproduz o ranking puro.
+Detalhes em [BENCHMARKS.md](BENCHMARKS.md).
+
+> Resumo da física: **bósons decidem a relevância, férmions decidem o conjunto.**
+
 ### 3. Hologramas Textuais (vetores em banco comum)
 
 O truque que dispensa banco vetorial. Cada texto vira um **holograma** feito só de tipos que qualquer banco já sabe indexar:
@@ -269,6 +294,22 @@ python3 tests/bench_fusion.py 1800
 | CombSUM (λ=0) | 83.3% | 0.833 |
 | **quântica (λ=1)** | 83.3% | 0.833 |
 | RRF (k=60) | 83.3% | 0.833 |
+
+### Seleção fermiônica — ganho medido (cobertura)
+
+```bash
+python3 tests/bench_coverage.py 20 8
+```
+
+| configuração | cobertura@6 | rank-1 útil |
+|---|:--:|:--:|
+| ranking puro | 46.7% | 100% |
+| **fermiônica 0.35 (padrão)** | **100%** | 100% |
+| RRF puro | 48.3% | 100% |
+| RRF + fermiônica | 100% | 100% |
+
+**+53 pontos** de fatos distintos no contexto, sem perder o topo e sem
+regressão onde não há redundância. É o ganho mais concreto do RAG3D até aqui.
 
 Quântica = RRF = CombSUM. `λ=0` (sem interferência) dá o mesmo que `λ=1` — coerente
 com a garantia de que a fusão colapsa no clássico. **Use RRF como padrão de

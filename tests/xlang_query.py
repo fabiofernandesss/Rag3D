@@ -1,4 +1,5 @@
 """Cross-language: lado Python CONSULTA o Postgres (para provar JS->PY)."""
+import os
 import sys
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from rag3d.config import TriRagConfig
 from rag3d.engine import TriRag
 from rag3d.llm import NoLLM
 
-DSN = "postgresql://postgres:rag3d@localhost:5433/rag3d"
+DSN = os.environ.get("RAG3D_PG", "postgresql://postgres:rag3d@localhost:5433/rag3d")
 
 
 def main():

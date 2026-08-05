@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert";
 import { rmSync } from "node:fs";
 import { TriRag, NoLLM } from "../src/engine.js";
-import { fuse } from "../src/fusion.js";
+import { fuse, fermionicSelect, coherence } from "../src/fusion.js";
 import { normalize, wordTokens, splitSentences, estimateTokens } from "../src/textproc.js";
 
 function tmp() { return "/tmp/trirag_js_" + Math.random().toString(36).slice(2); }
@@ -85,4 +85,30 @@ test("persistência JSON entre instâncias", async () => {
   const r = await rag.search("código do cofre");
   assert.ok(r.fused[0].text.includes("7742"), r.fused[0].text);
   await rag.close();
+});
+
+test("seleção fermiônica (MAP-DPP) evita redundância e mantém o topo", () => {
+  // 4 clusters de 4 vetores quase idênticos
+  const base = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];
+  const vecs = new Map(); const items = [];
+  for (let g = 0; g < 4; g++) for (let c = 0; c < 4; c++) {
+    const id = g * 10 + c;
+    const v = Float64Array.from(base[g].map((x, d) => x + (d === (g + 1) % 4 ? 0.02 * c : 0)));
+    const n = Math.hypot(...v); for (let d = 0; d < v.length; d++) v[d] /= n;
+    vecs.set(id, v); items.push([id, 1.0 - 0.01 * (g * 4 + c)]);
+  }
+  items.sort((a, b) => b[1] - a[1]);
+
+  const puro = fermionicSelect(items, vecs, 4, 0.0);
+  assert.deepEqual(puro, items.slice(0, 4).map(([i]) => i), "diversidade=0 = ranking puro");
+
+  const div = fermionicSelect(items, vecs, 4, 0.5);
+  assert.equal(new Set(div.map((i) => Math.floor(i / 10))).size, 4, "cobre os 4 clusters");
+  assert.equal(div[0], items[0][0], "mantém o top-1 relevante");
+  assert.ok(new Set(puro.map((i) => Math.floor(i / 10))).size < 4, "ranking puro concentra");
+});
+
+test("coerência: pico ~1, chapado 0", () => {
+  assert.ok(coherence(new Map([[1, 1.0], [2, 0.01], [3, 0.01]])) > 0.9);
+  assert.ok(coherence(new Map([[1, 1.0], [2, 1.0], [3, 1.0]])) < 1e-9);
 });

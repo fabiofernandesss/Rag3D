@@ -6,7 +6,7 @@
 
 import { TriRag, NoLLM } from "../src/engine.js";
 
-const DSN = "postgresql://postgres:rag3d@localhost:5433/rag3d";
+const DSN = process.env.RAG3D_PG || "postgresql://postgres:rag3d@localhost:5433/rag3d";
 const OVER = { pgDsn: DSN, encoder: "hash", contextualEnrich: false, smallCorpusTokens: 0 };
 
 async function mk() { return TriRag.create(OVER, { llm: new NoLLM() }); }

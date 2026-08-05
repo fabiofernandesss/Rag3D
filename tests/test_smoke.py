@@ -117,6 +117,39 @@ def test_quantum_fusion_math():
         check(f"doc solo sem interferência (doc {h.chunk_id})", abs(h.interference) < 1e-9)
 
 
+def test_fermionic_and_coherence():
+    print("\n== seleção fermiônica (MAP-DPP) + coerência ==")
+    import numpy as np
+    from rag3d.fusion import coherence, fermionic_select
+
+    # 4 clusters de 4 vetores quase idênticos; relevância decrescente
+    rng = np.random.default_rng(3)
+    base = rng.standard_normal((4, 16))
+    base /= np.linalg.norm(base, axis=1, keepdims=True)
+    vecs, items = {}, []
+    for g in range(4):
+        for c in range(4):
+            cid = g * 10 + c
+            v = base[g] + 0.02 * rng.standard_normal(16)
+            vecs[cid] = (v / np.linalg.norm(v)).astype(np.float32)
+            items.append((cid, 1.0 - 0.01 * (g * 4 + c)))
+    items.sort(key=lambda x: -x[1])
+
+    puro = fermionic_select(items, vecs, 4, diversity=0.0)
+    check("diversidade=0 devolve o ranking puro", puro == [i for i, _ in items[:4]], str(puro))
+
+    div = fermionic_select(items, vecs, 4, diversity=0.5)
+    grupos = {cid // 10 for cid in div}
+    check("fermiônica cobre os 4 clusters (exclusão de Pauli)", len(grupos) == 4, str(div))
+    check("fermiônica mantém o top-1 relevante", div[0] == items[0][0], str(div[0]))
+    grupos_puro = {cid // 10 for cid in puro}
+    check("ranking puro concentra num cluster só", len(grupos_puro) < 4, str(puro))
+
+    # coerência: pico = decidido (~1), chapado = indeciso (0)
+    check("coerência ~1 em distribuição de pico", coherence({1: 1.0, 2: 0.01, 3: 0.01}) > 0.9)
+    check("coerência 0 em distribuição chapada", coherence({1: 1.0, 2: 1.0, 3: 1.0}) < 1e-9)
+
+
 def test_memory_infinite():
     print("\n== memória de conversa (episódica + orçamento) ==")
     with tempfile.TemporaryDirectory() as td:
@@ -154,6 +187,7 @@ if __name__ == "__main__":
     test_ingest_and_axes()
     test_adaptive_chunking()
     test_quantum_fusion_math()
+    test_fermionic_and_coherence()
     test_memory_infinite()
     test_persistence()
     print(f"\n{'TUDO OK' if not FAILS else 'FALHAS: ' + ', '.join(FAILS)}")

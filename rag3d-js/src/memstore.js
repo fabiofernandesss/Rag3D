@@ -126,6 +126,14 @@ export class MemStore {
     return this.grams.filter((g) => g.kind === "turn").reduce((m, g) => Math.max(m, g.turn_no || 0), 0);
   }
 
+  // vetores densos — para a seleção fermiônica
+  async denseVecs(ids) {
+    const want = new Set(ids);
+    const out = new Map();
+    for (const g of this.grams) if (want.has(g.id) && g.dense) out.set(g.id, g.dense);
+    return out;
+  }
+
   async neighbors(docId, positions) {
     if (docId == null || !positions.length) return [];
     const set = new Set(positions);

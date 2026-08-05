@@ -48,6 +48,74 @@ alegação de superioridade. Meça nos SEUS dados antes de ligá-la.
 
 ---
 
+## 1b. Seleção fermiônica (MAP-DPP) — aqui SIM há ganho medido
+
+A fusão decide *quais* documentos são relevantes, mas nada decidia *qual
+conjunto* devolver — e o top-k enchia de quase-duplicatas (sobreposição de
+chunks e costura produzem near-dupes), deixando os outros fatos de fora.
+
+A seleção fermiônica escolhe o conjunto maximizando **relevância × volume**
+(determinante de Slater / DPP): dois trechos quase idênticos são duas
+partículas no mesmo estado — o determinante zera e um deles é excluído.
+
+```bash
+python3 tests/bench_coverage.py 20 8
+```
+
+Corpus: 20 tópicos × (3 fatos distintos + 8 duplicatas quase idênticas do
+fato 1). **Cobertura@6** = fração dos 3 fatos presentes no top-6 (se o fato
+não entra no contexto, a IA não tem como acertar).
+
+| configuração | cobertura@6 | rank-1 útil |
+|---|:--:|:--:|
+| ranking puro (diversidade=0) | 46.7% | 100% |
+| **fermiônica 0.3** | **100%** | 100% |
+| **fermiônica 0.5** | **100%** | 100% |
+| fermiônica 0.7 | 100% | 100% |
+| RRF puro | 48.3% | 100% |
+| **RRF + fermiônica 0.5** | **100%** | 100% |
+
+**+53 pontos de cobertura, sem perder o topo** (rank-1 continua 100%
+relevante). Vale igual para a fusão quântica e para o RRF — é ortogonal ao
+método de fusão.
+
+**Sem regressão** onde não há redundância (benchmark de agulha, 900 docs):
+
+| | Recall@5 | MRR |
+|---|:--:|:--:|
+| diversidade = 0 | 83.3% | 0.833 |
+| fermiônica 0.35 | 83.3% | 0.833 |
+| fermiônica 0.5 | 83.3% | 0.833 |
+
+Por isso está **ligada por padrão** (`diversity = 0.35`); `diversity = 0`
+reproduz exatamente o comportamento anterior.
+
+**Honestidade sobre este número:** o benchmark foi desenhado para medir
+redundância — é o modo de falha que a técnica ataca. Ele não diz que o RAG3D
+recupera *melhor* em geral; diz que, quando o corpus tem trechos repetidos
+(o caso comum com overlap/costura), o conjunto entregue à IA cobre muito mais
+fatos distintos. Referência: Chen et al., NeurIPS 2018 (guloso exato O(k²N)
+com Cholesky incremental); Kulesza & Taskar (DPP).
+
+### Pesos por coerência — implementado, mas DESLIGADO
+
+Também implementei modular o peso de cada eixo pela "pureza" Tr(ρ²) da sua
+distribuição de pontuações (canal indeciso pesaria menos). A pesquisa
+desaconselha ligar por padrão, e concordo:
+
+1. Tr(ρ²) numa ρ diagonal **é exatamente a entropia de Rényi-2** — "pureza" é
+   entropia com outro nome, não um conceito novo.
+2. A literatura de QPP mostra correlação ~0.09 para prever *qual ranker está
+   certo* nesta consulta (prevê bem dificuldade, mal acerto).
+3. Um canal pode estar **decidido e errado**.
+4. Canal com poucos candidatos parece trivialmente decidido (mitigado com um
+   piso de 3 candidatos, mas o viés não some).
+
+Fica disponível como `coherence_strength` para experimentação, **default 0**.
+No benchmark de cobertura não mudou nada (100% com e sem).
+
+---
+
 ## 2. O que este número NÃO prova
 
 - Não é benchmark público (BEIR/MIRACL/MS MARCO/LoTTE).

@@ -2,6 +2,7 @@
 
 Roda com o encoder fallback portável para casar bit a bit com o JS.
 """
+import os
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from rag3d.config import TriRagConfig
 from rag3d.engine import TriRag
 from rag3d.llm import NoLLM
 
-DSN = "postgresql://postgres:rag3d@localhost:5433/rag3d"
+DSN = os.environ.get("RAG3D_PG", "postgresql://postgres:rag3d@localhost:5433/rag3d")
 
 DOCS = [
     ("contrato", "O contrato de aluguel vence em 15 de março de 2027 e custa R$ 3.500 por mês."),

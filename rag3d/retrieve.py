@@ -19,7 +19,7 @@ import numpy as np
 
 from .config import TriRagConfig
 from .encoders import BaseEncoder, TriVec
-from .fusion import FusedHit, fuse
+from .fusion import FusedHit, fermionic_select, fuse
 from .store import TriStore
 
 CHANNELS = ("semantico", "lexico", "estrutural")
@@ -142,9 +142,14 @@ class TriRetriever:
 
         channels = {"semantico": dense, "lexico": sparse, "estrutural": struct}
 
-        # se vai reranquear, funde um pool maior e deixa o reranker escolher o topo
+        # pool maior quando há reranker e/ou seleção fermiônica a fazer depois
         do_rerank = self.reranker is not None and self.reranker.available()
-        fuse_k = max(top_k, self.cfg.rerank_pool) if do_rerank else top_k
+        do_div = self.cfg.diversity > 0.0
+        fuse_k = top_k
+        if do_rerank:
+            fuse_k = max(fuse_k, self.cfg.rerank_pool)
+        if do_div:
+            fuse_k = max(fuse_k, self.cfg.diversity_pool)
 
         # fusão (quântica ou RRF)
         fused_hits: List[FusedHit] = fuse(
@@ -154,6 +159,7 @@ class TriRetriever:
             method=self.cfg.fusion,
             interference_strength=self.cfg.interference_strength,
             rrf_k=self.cfg.rrf_k,
+            coherence_strength=self.cfg.coherence_strength,
         )
         # hidratação em lote: uma prefetch para fundido + as 3 visões juntas,
         # em vez de 4 hidratações separadas (cada uma batia o banco 2x).
@@ -172,9 +178,20 @@ class TriRetriever:
             row["channels"] = h.channels
             row["per_channel"] = h.per_channel
 
-        # reranker LLM-agnóstico: reordena o pool fundido e corta em top_k
+        # reranker LLM-agnóstico: reordena o pool fundido
         if do_rerank:
-            fused = self.reranker.rerank(query, fused, top_k=top_k)
+            fused = self.reranker.rerank(query, fused, top_k=self.cfg.diversity_pool if do_div else top_k)
+
+        # seleção fermiônica (MAP-DPP): escolhe o CONJUNTO de k, sem redundância
+        if do_div and len(fused) > top_k:
+            pool = fused[: self.cfg.diversity_pool]
+            vecs = self.store.dense_vecs([h["id"] for h in pool])
+            keep = fermionic_select(
+                [(h["id"], float(h.get("score") or 0.0)) for h in pool],
+                vecs, top_k, diversity=self.cfg.diversity,
+            )
+            order = {cid: i for i, cid in enumerate(keep)}
+            fused = sorted((h for h in pool if h["id"] in order), key=lambda h: order[h["id"]])
         else:
             fused = fused[:top_k]
         self._stitch(fused)  # costura de contiguidade (Rag3D) no top-k final

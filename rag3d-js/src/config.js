@@ -32,6 +32,12 @@ export function defaultConfig(over = {}) {
     rrfK: 60,
     channelWeights: [1.0, 0.8, 0.9],
     interferenceStrength: 1.0,
+    // coerência: peso do eixo modulado pela pureza da sua distribuição (0 = fixo)
+    coherenceStrength: 0.0,
+    // seleção fermiônica (MAP-DPP / determinante de Slater): escolhe o CONJUNTO
+    // final sem redundância (exclusão de Pauli). 0 = ranking puro.
+    diversity: 0.35,
+    diversityPool: 40,
     rerank: false,
     rerankPool: 30,
     // query expansion via LLM: gera termos alternativos (sinônimos, números

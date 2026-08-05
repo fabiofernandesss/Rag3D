@@ -171,6 +171,15 @@ class PgHoloStore:
         by_id = {r[0]: dict(zip(cols, r)) for r in rows}
         return [by_id[i] for i in ids if i in by_id]
 
+    def dense_vecs(self, ids: Sequence[int]) -> Dict[int, np.ndarray]:
+        """Vetores densos (eco int8 desquantizado) — para a seleção fermiônica."""
+        if not ids:
+            return {}
+        rows = self.db.execute(
+            "SELECT id, echo FROM holo_grams WHERE id = ANY(%s) AND echo IS NOT NULL", (list(ids),)
+        ).fetchall()
+        return {int(cid): self.holo.dequantize(bytes(echo)) for cid, echo in rows}
+
     def touch_access(self, ids: Sequence[int], turn_no: int) -> None:
         if not ids:
             return

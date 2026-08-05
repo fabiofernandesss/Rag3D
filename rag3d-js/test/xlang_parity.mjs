@@ -4,7 +4,7 @@ import pg from "pg";
 import { HashEncoder } from "../src/encoders.js";
 import { Holographer } from "../src/holo.js";
 
-const c = new pg.Client({ connectionString: "postgresql://postgres:rag3d@localhost:5433/rag3d" });
+const c = new pg.Client({ connectionString: process.env.RAG3D_PG || "postgresql://postgres:rag3d@localhost:5433/rag3d" });
 await c.connect();
 // usa a coluna ctx (o texto EXATO que o Python embutiu) — sem adivinhar
 const row = (await c.query(

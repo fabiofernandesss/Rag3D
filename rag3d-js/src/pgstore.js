@@ -139,6 +139,17 @@ export class PgHoloStore {
     return ids.map((i) => byId.get(i)).filter(Boolean);
   }
 
+  // vetores densos (eco int8 desquantizado) — para a seleção fermiônica
+  async denseVecs(ids) {
+    const out = new Map();
+    if (!ids.length) return out;
+    const r = await this.db.query(
+      "SELECT id, echo FROM holo_grams WHERE id = ANY($1) AND echo IS NOT NULL", [ids]
+    );
+    for (const row of r.rows) out.set(Number(row.id), Holographer.dequantize(new Uint8Array(row.echo)));
+    return out;
+  }
+
   async touchAccess(ids, turnNo) {
     if (!ids.length) return;
     await this.db.query("UPDATE holo_grams SET accessed_turn=$1 WHERE id = ANY($2)", [turnNo, ids]);
