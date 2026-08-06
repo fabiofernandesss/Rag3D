@@ -16,10 +16,11 @@
 
 **Um método novo de RAG.** Cada texto vira um objeto de **três dimensões**, buscado por três eixos ao mesmo tempo, combinado por um cálculo de **interferência quântica**, lido por **qualquer IA** — e rodando até num **Postgres comum, sem `pgvector`**.
 
-Funciona em **qualquer língua** e o mesmo índice serve **Python e JavaScript** (assinaturas idênticas bit a bit).
+Funciona em **qualquer língua** e o mesmo índice serve **Python, JavaScript e Java** (assinaturas idênticas bit a bit).
 
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](#)
 [![Node](https://img.shields.io/badge/Node-18+-339933?logo=nodedotjs&logoColor=white)](#)
+[![Java](https://img.shields.io/badge/Java-17+_·_Spring_Boot-ED8B00?logo=openjdk&logoColor=white)](#)
 [![Postgres](https://img.shields.io/badge/Postgres-sem_pgvector-4169E1?logo=postgresql&logoColor=white)](#)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
@@ -36,6 +37,7 @@ Funciona em **qualquer língua** e o mesmo índice serve **Python e JavaScript**
 [Arquitetura](#️-arquitetura) ·
 [Começando](#-começando-3-minutos) ·
 [App web](#opção-a--app-web-upload-de-pdftxt--chat-) ·
+[Java / Spring Boot](#opção-d--java--spring-boot-) ·
 [Configuração](#️-configuração-variáveis-de-ambiente) ·
 [Testes](#-rodando-os-testes) ·
 [Avaliação e ablação](#-avaliação-e-ablação-honesto) ·
@@ -119,9 +121,26 @@ O truque que dispensa banco vetorial. Cada texto vira um **holograma** feito só
 
 Resultado: **busca vetorial em Postgres puro**, sem `pgvector`, sem extensão nenhuma.
 
-### 4. Um índice, duas linguagens
+### 4. Um índice, TRÊS linguagens
 
-Python (`rag3d/`) e JavaScript (`rag3d-js/`) produzem **hologramas idênticos bit a bit** (mesmo PRNG, mesmo hash, mesmos hiperplanos — ver `portable.py`/`portable.js`). Um documento ingerido em Python é achado por uma consulta em JS **no mesmo banco** — assinatura `BIT(1024)` com **Hamming 0/1024** entre as linguagens.
+Python (`rag3d/`), JavaScript (`rag3d-js/`) e **Java** (`rag3d-java/`) produzem
+**hologramas idênticos bit a bit** — mesmo PRNG (splitmix64), mesmo hash
+(CRC-32), mesmos hiperplanos (`portable.py` / `portable.js` / `Portable.java`).
+
+Um documento ingerido em Python é achado por uma consulta em JS **ou em Java**,
+no mesmo banco, sem reindexar nada:
+
+```
+Python ─┐
+JS ─────┼──► mesmo Postgres ──► assinatura BIT(1024) idêntica: Hamming 0/1024
+Java ───┘
+```
+
+**Verificado** (`tests/xlang_ingest.py` + `XlangCheck` + `xlang_parity.mjs`):
+Python ingere 6 documentos em PT/EN/中文/francês → Java acha **6/6** e JS acha
+**6/6**, com assinatura recomputada batendo **0/1024** bits. Isso significa que
+o time de dados pode indexar em Python e a aplicação corporativa consultar em
+Java — o mesmo índice, sem ETL entre eles.
 
 ### 5. Defesas para documentos normativos
 
@@ -219,6 +238,82 @@ console.log(r.fused[0].text, r.fused[0].interference);
 await rag.close();
 ```
 
+### Opção D — Java / Spring Boot ☕
+
+Para aplicação corporativa. O núcleo Java (`rag3d-java/`) é o mesmo algoritmo —
+sem dependência de Python ou Node, só o driver JDBC.
+
+```xml
+<!-- pom.xml -->
+<dependency>
+  <groupId>io.rag3d</groupId>
+  <artifactId>rag3d</artifactId>
+  <version>0.1.0</version>
+</dependency>
+```
+
+**Uso direto (sem framework):**
+
+```java
+import io.rag3d.Rag3D;
+
+try (Rag3D rag = Rag3D.connect("jdbc:postgresql://localhost:5432/rag3d", "postgres", senha)) {
+    rag.ingest("O contrato de aluguel vence em 15 de março de 2027.");
+
+    Rag3D.Result r = rag.search("quando vence o contrato?", 8);
+    r.fused().forEach(h ->
+        System.out.printf("%.3f  %s  %s%n", h.score(), h.channels(), h.text()));
+
+    r.views().forEach((eixo, hits) ->      // as 3 respostas do tridimensional
+        System.out.println(eixo + " -> " + hits.size() + " hits"));
+}
+```
+
+**Com Spring Boot** — auto-configuração inclusa, é só declarar no `application.yml`:
+
+```yaml
+rag3d:
+  jdbc-url: jdbc:postgresql://localhost:5432/rag3d   # Postgres COMUM, sem pgvector
+  username: postgres
+  password: ${DB_PASSWORD}        # nunca a senha em texto no yml
+  top-k: 10
+  diversity: 0.35                 # seleção fermiônica (0 = ranking puro)
+  fusion: quantum                 # quantum | rrf
+  web:
+    enabled: true                 # opcional: expõe /rag3d/search e /rag3d/ingest
+```
+
+```java
+@Service
+public class BuscaService {
+    private final Rag3D rag;                       // injetado pela auto-configuração
+    public BuscaService(Rag3D rag) { this.rag = rag; }
+
+    public List<Rag3D.Hit> perguntar(String q) throws SQLException {
+        return rag.search(q, 8).fused();
+    }
+}
+```
+
+Com `rag3d.web.enabled=true`, sobem os endpoints prontos:
+
+```bash
+curl -X POST localhost:8080/rag3d/ingest -H 'Content-Type: application/json' \
+     -d '{"text":"...","title":"contrato.pdf"}'
+curl 'localhost:8080/rag3d/search?q=prazo&k=8'
+```
+
+> O Spring Boot é **opcional** (`<optional>true</optional>` no pom): sem ele, o
+> núcleo funciona igual via `Rag3D.connect(...)`.
+
+**Compilar e testar sem Maven** (Java 21+):
+
+```bash
+cd rag3d-java
+javac -d target/classes -cp lib/postgresql.jar $(find src/main/java -name '*.java' -not -path '*/spring/*')
+java -cp target/classes:lib/postgresql.jar XlangCheck    # prova a paridade tri-linguagem
+```
+
 ### CLI (Python e JS)
 
 ```bash
@@ -251,6 +346,10 @@ rag3d-js/
   src/            port JavaScript (mesmos módulos, hologramas idênticos)
   web/            app web: server.js (Express) + client React (upload + chat streaming)
   test/           suíte JS + testes cross-language
+rag3d-java/       port Java (Maven) — núcleo + auto-configuração Spring Boot
+  src/main/java/io/rag3d/core/     Portable · TextProc · Encoders · Holo · Fusion · PgHoloStore
+  src/main/java/io/rag3d/spring/   auto-config + controller REST opcional
+  src/test/java/                   ParityCheck (bit a bit) · XlangCheck (tri-linguagem)
 tests/            suíte Python + bench_fusion.py + beir_ablation.py + scripts cross-language
 BENCHMARKS.md     ablação honesta + roteiro de avaliação BEIR
 docker-compose.yml   Postgres comum (sem pgvector)
@@ -268,7 +367,11 @@ PYTHONPATH=$PWD python3 tests/test_pg.py         # backend holográfico (Postgre
 python3 tests/bench_fusion.py                    # quântica vs RRF nos seus dados
 # JavaScript
 cd rag3d-js && node --test 'test/*.test.mjs'
-# Cross-language (prova Hamming 0/1024)
+# Java (sem Maven: javac + driver JDBC em rag3d-java/lib)
+cd rag3d-java && javac -d target/classes -cp lib/postgresql.jar $(find src -name '*.java' -not -path '*/spring/*')
+java -cp target/classes:lib/postgresql.jar ParityCheck   # holograma idêntico
+java -cp target/classes:lib/postgresql.jar XlangCheck    # acha o que o Python ingeriu
+# Cross-language (prova Hamming 0/1024 nas três linguagens)
 python3 tests/xlang_ingest.py && node rag3d-js/test/xlang_parity.mjs
 ```
 
@@ -349,7 +452,7 @@ RRF com passos extras?"*.
 | Extensão / serviço extra | **nenhum** (Postgres puro) | extensão pgvector | serviço/infra dedicada |
 | Busca vetorial | `bit_count` + `INT[]`/`BYTEA` nativos | `<->` operador da extensão | índice ANN próprio |
 | Multilíngue (100+) | ✅ BGE-M3 | depende do encoder | depende do encoder |
-| Mesmo índice em 2 linguagens | ✅ Python **e** JS (bit a bit) | — | — |
+| Mesmo índice em 3 linguagens | ✅ Python · JS · **Java** (bit a bit) | — | — |
 | Fricção operacional | mínima (qualquer Postgres gerenciado) | média | alta |
 | ANN em escala de milhões | ⚠️ ainda não (scan + facetas) | ✅ HNSW | ✅ |
 

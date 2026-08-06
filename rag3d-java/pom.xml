@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>io.rag3d</groupId>
+  <artifactId>rag3d</artifactId>
+  <version>0.1.0</version>
+  <packaging>jar</packaging>
+
+  <name>RAG3D</name>
+  <description>RAG tridimensional: 3 eixos, fusão por interferência quântica, seleção fermiônica (MAP-DPP) e Hologramas Textuais em Postgres puro (sem pgvector). Índice compatível bit a bit com as versões Python e JavaScript.</description>
+  <url>https://github.com/fabiofernandesss/Rag3D</url>
+
+  <licenses>
+    <license><name>MIT</name><url>https://opensource.org/licenses/MIT</url></license>
+  </licenses>
+
+  <developers>
+    <developer>
+      <name>Fabio Fernandes Jesus</name>
+      <email>fabiofernandesjesus@hotmail.com</email>
+    </developer>
+  </developers>
+
+  <properties>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <spring.boot.version>3.3.5</spring.boot.version>
+  </properties>
+
+  <dependencies>
+    <!-- driver JDBC: único obrigatório (Postgres COMUM, sem pgvector) -->
+    <dependency>
+      <groupId>org.postgresql</groupId>
+      <artifactId>postgresql</artifactId>
+      <version>42.7.4</version>
+    </dependency>
+
+    <!-- Spring Boot: OPCIONAL. Sem ele, use io.rag3d.Rag3D direto. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-autoconfigure</artifactId>
+      <version>${spring.boot.version}</version>
+      <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+      <version>${spring.boot.version}</version>
+      <optional>true</optional>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+      </plugin>
+    </plugins>
+  </build>
+</project>

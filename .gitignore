@@ -33,3 +33,7 @@ npm-debug.log*
 
 # dataset BEIR baixado (baixável, não versionar)
 bench_data/
+
+# jars baixados p/ compilar sem Maven (use 'mvn' ou baixe de novo)
+rag3d-java/lib/
+rag3d-java/target/
