@@ -1,0 +1,129 @@
+{
+  "schema_version": "1.0",
+  "recorded_at": "2026-08-13T22:28:00-03:00",
+  "commit": "d39604dba98cbbf9d4f9c67781abf211aeb6a295",
+  "branch_base": "upstream/main",
+  "environment": {
+    "os": "macOS 26.5.2 (Darwin 25.5.0, arm64)",
+    "hardware": "MacBook Pro Mac15,6; Apple M3 Pro; 11 cores (5 performance, 6 efficiency); 18 GB RAM",
+    "python": "3.14.5",
+    "node": "25.2.1",
+    "npm": "11.6.2",
+    "java": "OpenJDK 17.0.17",
+    "maven": null,
+    "postgres_client": "17.6",
+    "postgres_server": null,
+    "pgvector": {
+      "host_package": "0.8.5 (Homebrew)",
+      "loaded_in_server": null,
+      "backend_tested": false
+    },
+    "docker": "29.6.2",
+    "numpy": "2.5.1",
+    "encoder": "hash fallback"
+  },
+  "configuration": {
+    "backend": "sqlite",
+    "pipeline": "legacy",
+    "dense_dim": 1024,
+    "structural_dim": 128,
+    "top_k": 5,
+    "channel_k": 100,
+    "fusion": "quantum unless benchmark overrides it",
+    "seed": 42
+  },
+  "commands": [
+    {
+      "command": "PYTHONPATH=$PWD python3 tests/test_smoke.py",
+      "exit_code": 0,
+      "result": "all script assertions passed",
+      "wall_seconds": 2.0041
+    },
+    {
+      "command": "PYTHONPATH=$PWD python3 tests/bench_fusion.py 1800",
+      "exit_code": 0,
+      "dataset": "deterministic synthetic multilingual labeled corpus",
+      "documents": 1800,
+      "chunks": 1800,
+      "queries": 120,
+      "wall_seconds": 1.2481,
+      "metrics": {
+        "dense": {"recall_at_5": 0.8333, "mrr": 0.833},
+        "sparse": {"recall_at_5": 0.8333, "mrr": 0.750},
+        "structural": {"recall_at_5": 0.8333, "mrr": 0.833},
+        "combsum": {"recall_at_5": 0.8333, "mrr": 0.833},
+        "quantum": {"recall_at_5": 0.8333, "mrr": 0.833},
+        "rrf": {"recall_at_5": 0.8333, "mrr": 0.833}
+      }
+    },
+    {
+      "command": "PYTHONPATH=$PWD python3 tests/bench_coverage.py 20 8",
+      "exit_code": 0,
+      "dataset": "20 synthetic topics; 3 facts and 8 near-duplicates per topic",
+      "documents": 220,
+      "queries": 20,
+      "wall_seconds": 1.0174,
+      "metrics": {
+        "pure_ranking": {"coverage_at_6": 0.467, "useful_rank_1": 1.0},
+        "dpp_0_5": {"coverage_at_6": 1.0, "useful_rank_1": 1.0},
+        "rrf": {"coverage_at_6": 0.483, "useful_rank_1": 1.0},
+        "rrf_dpp_0_5": {"coverage_at_6": 1.0, "useful_rank_1": 1.0}
+      }
+    },
+    {
+      "command": "PYTHONPATH=$PWD python3 tests/test_pg.py",
+      "exit_code": 2,
+      "result": "hologram math assertions passed; PostgreSQL tests unavailable because psycopg was not installed"
+    },
+    {
+      "command": "cd rag3d-js && npm test",
+      "exit_code": 0,
+      "result": "8 passed, 0 failed",
+      "wall_seconds": 0.3440
+    },
+    {
+      "command": "javac ... ParityCheck.java && java ... ParityCheck",
+      "exit_code": 0,
+      "result": "portable encoder, hologram and fusion parity executable completed"
+    },
+    {
+      "command": "PYTHONPATH=$PWD python3 -m pytest -q",
+      "exit_code": 1,
+      "result": "pytest was not installed in the baseline environment"
+    }
+  ],
+  "supplemental_validation": {
+    "performed_before_product_code_changes": true,
+    "environment_provisioning": {
+      "postgres_server": "17.6 (Homebrew)",
+      "pgvector_extension_loaded": "0.8.5",
+      "psycopg": "3.3.4",
+      "pgvector_python": "0.5.0",
+      "database_scope": "ephemeral local integration cluster"
+    },
+    "command": "RAG3D_PG=<local-redacted-dsn> PYTHONPATH=$PWD .venv/bin/python tests/test_pg.py",
+    "exit_code": 0,
+    "result": "all holographic PostgreSQL assertions passed, including 400-document scale path and facet prefilter",
+    "reported_ingestion_seconds": 0.3,
+    "reported_query_ms": 7,
+    "reported_prefilter_query_ms": 6,
+    "claim_scope": "single-run legacy integration validation; not a performance claim"
+  },
+  "unavailable_metrics": [
+    "nDCG@10",
+    "Recall@20",
+    "latency p50/p95/p99 per query",
+    "QPS",
+    "RSS",
+    "index size",
+    "ingestion throughput",
+    "paired 95% confidence interval"
+  ],
+  "preexisting_failures": [
+    "origin initially used SSH and fetch failed without a local SSH key; remote was changed to the requested HTTPS URL",
+    "PostgreSQL integration could not run because psycopg was absent",
+    "Maven was absent",
+    "the PATH docker client did not expose the compose subcommand",
+    "pytest was absent"
+  ]
+}

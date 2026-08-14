@@ -1,0 +1,203 @@
+{
+  "schema_version": "1.0",
+  "graph": "G=(V,E)",
+  "base_branch": "upstream/main",
+  "nodes": [
+    {
+      "id": "RULE-001",
+      "type": "rule",
+      "title": "Preserve public API, SQLite, holographic PostgreSQL, quantum fusion, retrieval-only and cross-language behavior",
+      "owners": ["AGENT-CARTOGRAPHER", "AGENT-JS-JAVA-COMPAT"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "RULE-002",
+      "type": "rule",
+      "title": "Use truthful backend capabilities, bounded pools, deterministic finite scores and explicit fingerprints",
+      "owners": ["AGENT-BACKEND-ARCHITECT"],
+      "reviewers": ["AGENT-TESTS", "AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "RULE-003",
+      "type": "rule",
+      "title": "Keep pgvector optional and migrations idempotent, parameterized and non-destructive",
+      "owners": ["AGENT-PGVECTOR", "AGENT-SECURITY"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "RULE-004",
+      "type": "rule",
+      "title": "Use primary sources and mathematically valid claims with reproducible evidence",
+      "owners": ["AGENT-IR-RESEARCH", "AGENT-HNSW-MATH", "AGENT-LSH-MATH", "AGENT-LATE-INTERACTION"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "RULE-005",
+      "type": "rule",
+      "title": "Separate calibration, validation and test; report paired 95% confidence intervals without cherry-picking",
+      "owners": ["AGENT-EVALUATION"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "RULE-006",
+      "type": "rule",
+      "title": "Profile before optimization and accept complexity only with measured benefit under quality gates",
+      "owners": ["AGENT-PERFORMANCE"],
+      "reviewers": ["AGENT-EVALUATION", "AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "RULE-007",
+      "type": "rule",
+      "title": "Implement test-first and verify Python, PostgreSQL, Node and Java compatibility",
+      "owners": ["AGENT-TESTS", "AGENT-JS-JAVA-COMPAT"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "RULE-008",
+      "type": "rule",
+      "title": "Create atomic commits, push only to fork and open a verified upstream pull request without force push",
+      "owners": ["AGENT-GIT-PR"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-001",
+      "type": "improvement",
+      "title": "Introduce a typed RetrievalBackend contract and adapters with capability negotiation",
+      "owners": ["AGENT-BACKEND-ARCHITECT"],
+      "reviewers": ["AGENT-TESTS", "AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-002",
+      "type": "improvement",
+      "title": "Add optional pgvector exact and HNSW retrieval with filters, diagnostics and EXPLAIN support",
+      "owners": ["AGENT-PGVECTOR", "AGENT-HNSW-MATH"],
+      "reviewers": ["AGENT-SECURITY", "AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-003",
+      "type": "improvement",
+      "title": "Add a feature-flagged V2 pipeline whose safe fusion default is equal-weight dense+sparse RRF",
+      "owners": ["AGENT-FUSION"],
+      "reviewers": ["AGENT-BACKEND-ARCHITECT", "AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-004",
+      "type": "improvement",
+      "title": "Classify and implement structural scoring as late-interaction reranking over generated candidates",
+      "owners": ["AGENT-LATE-INTERACTION", "AGENT-LSH-MATH"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-005",
+      "type": "improvement",
+      "title": "Provide none, MMR and numerically stable greedy DPP diversity after optional reranking",
+      "owners": ["AGENT-DIVERSITY"],
+      "reviewers": ["AGENT-TESTS", "AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-006",
+      "type": "improvement",
+      "title": "Make encoder fallback explicit and fingerprint model, dimensions, normalization, quantization and chunking",
+      "owners": ["AGENT-EMBEDDINGS"],
+      "reviewers": ["AGENT-JS-JAVA-COMPAT", "AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-007",
+      "type": "improvement",
+      "title": "Add safe stage timings, candidate counts and configuration diagnostics",
+      "owners": ["AGENT-PERFORMANCE"],
+      "reviewers": ["AGENT-SECURITY", "AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-008",
+      "type": "improvement",
+      "title": "Add reproducible quality, latency, throughput, memory and index-size benchmarks with stage recall",
+      "owners": ["AGENT-EVALUATION", "AGENT-PERFORMANCE"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "IMPROVEMENT-009",
+      "type": "improvement",
+      "title": "Document architecture, evidence, rollout, rollback, compatibility and limitations",
+      "owners": ["AGENT-CARTOGRAPHER", "AGENT-GIT-PR"],
+      "reviewers": ["AGENT-INDEPENDENT-REVIEWER"]
+    },
+    {
+      "id": "RESEARCH-001",
+      "type": "research",
+      "title": "Ground retrieval, HNSW, pgvector, RRF, late interaction, DPP and evaluation decisions in primary sources",
+      "owners": ["AGENT-IR-RESEARCH", "AGENT-HNSW-MATH", "AGENT-PGVECTOR", "AGENT-DIVERSITY"]
+    },
+    {
+      "id": "ARCH-001",
+      "type": "architecture",
+      "title": "Model the legacy and V2 retrieval graphs, backend boundaries, impact and rollback",
+      "owners": ["AGENT-CARTOGRAPHER", "AGENT-BACKEND-ARCHITECT"]
+    },
+    {
+      "id": "IMPLEMENT-001",
+      "type": "implementation",
+      "title": "Implement bounded adapters, optional pgvector, V2 orchestration, diagnostics and safe ingestion",
+      "owners": ["AGENT-CONTRACTS-IMPL", "AGENT-ADAPTERS-IMPL", "AGENT-PGVECTOR-IMPL", "AGENT-PIPELINE-IMPL"]
+    },
+    {
+      "id": "TEST-001",
+      "type": "test",
+      "title": "Verify unit, property, contract, integration, security and cross-language invariants",
+      "owners": ["AGENT-TESTS", "AGENT-JS-JAVA-COMPAT"]
+    },
+    {
+      "id": "BENCH-001",
+      "type": "benchmark",
+      "title": "Measure frozen baseline and V2 quality/performance without test tuning or unsupported claims",
+      "owners": ["AGENT-EVALUATION", "AGENT-PERFORMANCE"]
+    },
+    {
+      "id": "DOC-001",
+      "type": "documentation",
+      "title": "Record architecture, research, evidence, rollout, data-aware rollback and measured limitations",
+      "owners": ["AGENT-CARTOGRAPHER"]
+    },
+    {
+      "id": "GIT-001",
+      "type": "git",
+      "title": "Produce an auditable atomic commit series on the feature branch",
+      "owners": ["AGENT-GIT-PR"]
+    },
+    {
+      "id": "PR-001",
+      "type": "pull_request",
+      "title": "Push only to the fork and open a verified cross-fork pull request to upstream main",
+      "owners": ["AGENT-GIT-PR"]
+    }
+  ],
+  "edges": [
+    {"from": "RULE-001", "to": "IMPROVEMENT-001", "type": "protects"},
+    {"from": "RULE-002", "to": "IMPROVEMENT-001", "type": "validates"},
+    {"from": "RULE-003", "to": "IMPROVEMENT-002", "type": "protects"},
+    {"from": "RULE-004", "to": "IMPROVEMENT-002", "type": "validates"},
+    {"from": "RULE-004", "to": "IMPROVEMENT-003", "type": "validates"},
+    {"from": "RULE-005", "to": "IMPROVEMENT-008", "type": "validates"},
+    {"from": "RULE-006", "to": "IMPROVEMENT-007", "type": "depends_on"},
+    {"from": "RULE-006", "to": "IMPROVEMENT-008", "type": "validates"},
+    {"from": "RULE-007", "to": "IMPROVEMENT-001", "type": "tests"},
+    {"from": "RULE-007", "to": "IMPROVEMENT-002", "type": "tests"},
+    {"from": "RULE-007", "to": "IMPROVEMENT-003", "type": "tests"},
+    {"from": "RULE-008", "to": "IMPROVEMENT-009", "type": "depends_on"},
+    {"from": "IMPROVEMENT-001", "to": "IMPROVEMENT-002", "type": "enables"},
+    {"from": "IMPROVEMENT-001", "to": "IMPROVEMENT-003", "type": "enables"},
+    {"from": "IMPROVEMENT-003", "to": "IMPROVEMENT-004", "type": "calls"},
+    {"from": "IMPROVEMENT-004", "to": "IMPROVEMENT-005", "type": "precedes"},
+    {"from": "IMPROVEMENT-006", "to": "IMPROVEMENT-001", "type": "protects"},
+    {"from": "IMPROVEMENT-007", "to": "IMPROVEMENT-008", "type": "measures"},
+    {"from": "IMPROVEMENT-008", "to": "IMPROVEMENT-009", "type": "documents"},
+    {"from": "RESEARCH-001", "to": "ARCH-001", "type": "informs"},
+    {"from": "ARCH-001", "to": "IMPLEMENT-001", "type": "constrains"},
+    {"from": "IMPLEMENT-001", "to": "TEST-001", "type": "is_tested_by"},
+    {"from": "TEST-001", "to": "BENCH-001", "type": "protects"},
+    {"from": "BENCH-001", "to": "DOC-001", "type": "is_documented_by"},
+    {"from": "DOC-001", "to": "GIT-001", "type": "is_committed_by"},
+    {"from": "GIT-001", "to": "PR-001", "type": "enables"},
+    {"from": "PR-001", "to": "RULE-008", "type": "validates"}
+  ]
+}
