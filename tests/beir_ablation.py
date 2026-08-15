@@ -1,19 +1,20 @@
-"""Ablação REAL em base pública BEIR (nDCG@10, Recall@10) com encoder BGE-M3.
+"""Diagnóstico exploratório BEIR (nDCG@10, Recall@10) com BGE-M3.
 
-Responde à pergunta que o harness sintético não responde: com semântica de
-verdade, a fusão quântica supera o RRF? E quanto cada eixo contribui?
+Este script histórico compara várias estratégias e valores de lambda no split
+``test``. Portanto ele NÃO pode selecionar configuração, sustentar claim de
+qualidade ou entrar no gate de 20%. Para evidência, use o runner V2 com splits
+calibration/validation/test, validation lock e intervalos pareados.
 
   # baixe um dataset BEIR em bench_data/<nome>/ (corpus.jsonl, queries.jsonl, qrels/test.tsv)
   .venv/bin/python tests/beir_ablation.py nfcorpus [max_docs]
 
 Usa o encoder BGE-M3 (RAG3D_ENCODER=bge-m3) e o store SQLite do próprio RAG3D.
-Compara, na MESMA recuperação: eixos isolados, CombSUM, fusão quântica
-(λ=0/0.5/1) e RRF. Números honestos, reproduzíveis.
+Compara, na mesma recuperação: eixos isolados, CombSUM, fusão quântica
+(λ=0/0.5/1) e RRF. Os números são somente diagnósticos exploratórios.
 """
 from __future__ import annotations
 
 import json
-import math
 import sys
 import tempfile
 import time
@@ -25,12 +26,23 @@ import numpy as np
 
 from rag3d.config import TriRagConfig
 from rag3d.encoders import make_encoder
+from rag3d.evaluation import (
+    BOOTSTRAP_SEED,
+    ndcg_at_k as _safe_ndcg_at_k,
+    recall_at_k as _safe_recall_at_k,
+    select_corpus_by_hash,
+)
 from rag3d.fusion import fuse
 from rag3d.store import TriStore
 
 DATA = Path(__file__).resolve().parents[1] / "bench_data"
 CHANNEL_K = 100   # candidatos por eixo
 TOPK = 10         # nDCG@10 / Recall@10
+CLAIM_ELIGIBLE = False
+DIAGNOSTIC_NOTICE = (
+    "DIAGNOSTICO EXPLORATORIO: estrategias e lambda usam qrels/test; "
+    "nao use estes numeros para tuning, selecao, claim ou gate de 20%."
+)
 
 
 def load_beir(name: str):
@@ -56,34 +68,33 @@ def load_beir(name: str):
     return corpus, queries, qrels
 
 
+def select_corpus(corpus, max_docs, *, seed=BOOTSTRAP_SEED):
+    """Select a deterministic smoke subset without consulting relevance labels."""
+
+    return select_corpus_by_hash(corpus, max_docs, seed=seed)
+
+
 def ndcg_at_k(ranking, rel, k=TOPK):
-    dcg = 0.0
-    for i, cid in enumerate(ranking[:k]):
-        g = rel.get(cid, 0)
-        if g:
-            dcg += (2 ** g - 1) / math.log2(i + 2)
-    ideal = sorted(rel.values(), reverse=True)[:k]
-    idcg = sum((2 ** g - 1) / math.log2(i + 2) for i, g in enumerate(ideal))
-    return dcg / idcg if idcg > 0 else 0.0
+    value = _safe_ndcg_at_k(ranking, rel, k)
+    return 0.0 if value is None else value
 
 
 def recall_at_k(ranking, rel, k=TOPK):
-    rset = set(rel.keys())
-    if not rset:
-        return 0.0
-    return len(set(ranking[:k]) & rset) / len(rset)
+    value = _safe_recall_at_k(ranking, rel, k)
+    return 0.0 if value is None else value
 
 
 def main():
+    print(DIAGNOSTIC_NOTICE)
     name = sys.argv[1] if len(sys.argv) > 1 else "nfcorpus"
     max_docs = int(sys.argv[2]) if len(sys.argv) > 2 else 0
     corpus, queries, qrels = load_beir(name)
     if max_docs:
-        # mantém docs julgados + completa até max_docs (para caber no tempo/CPU)
-        judged = {c for rel in qrels.values() for c in rel}
-        keep = list(judged) + [c for c in corpus if c not in judged]
-        keep = set(keep[:max(max_docs, len(judged))])
-        corpus = {c: t for c, t in corpus.items() if c in keep}
+        corpus = select_corpus(corpus, max_docs)
+        print(
+            "AVISO: --max_docs usa amostra por hash independente de qrels; "
+            "é apenas smoke e não sustenta claim de qualidade."
+        )
     print(f"[{name}] corpus={len(corpus)} queries_teste={len(queries)}")
 
     cfg = TriRagConfig()

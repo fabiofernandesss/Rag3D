@@ -11,7 +11,7 @@ PARÁFRASES quase idênticas do fato 1 (a armadilha de redundância). A consulta
 
   python3 tests/bench_coverage.py [n_topicos] [n_paráfrases]
 
-Compara a seleção fermiônica (MAP-DPP / determinante de Slater) em vários
+Compara a seleção greedy-DPP (aproximação do objetivo log-det) em vários
 níveis de diversidade contra o ranking puro, e verifica que o topo não é
 sacrificado (rank-1 continua relevante).
 """
