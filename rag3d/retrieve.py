@@ -13,10 +13,12 @@ pela janela-pai na hora de montar o contexto.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from itertools import zip_longest
 from typing import Dict, List, Optional
 
 import numpy as np
 
+from .backend import DEFAULT_RETRIEVAL_LIMITS, validate_query_text
 from .config import TriRagConfig
 from .encoders import BaseEncoder, TriVec
 from .fusion import FusedHit, fermionic_select, fuse
@@ -30,6 +32,28 @@ _SYS_EXPAND = (
     "aparecem no documento (sinônimos, palavras-chave, números de seção/item, siglas expandidas). "
     "Uma variação por linha, sem numeração, sem explicações."
 )
+
+
+def _bounded_candidate_union(
+    dense: List[tuple], sparse: List[tuple]
+) -> List[int]:
+    """Interleave independent ranks into one deterministic structural pool."""
+
+    maximum = DEFAULT_RETRIEVAL_LIMITS.max_pool
+    selected: List[int] = []
+    seen = set()
+    for dense_item, sparse_item in zip_longest(dense, sparse):
+        for item in (dense_item, sparse_item):
+            if item is None:
+                continue
+            candidate_id = int(item[0])
+            if candidate_id in seen:
+                continue
+            seen.add(candidate_id)
+            selected.append(candidate_id)
+            if len(selected) == maximum:
+                return selected
+    return selected
 
 
 @dataclass
@@ -59,6 +83,7 @@ class TriRetriever:
                 _SYS_EXPAND.format(N=self.cfg.expand_query_max),
                 [{"role": "user", "content": query}], max_tokens=200,
             )
+            raw = validate_query_text(raw)
             variants = [s.strip() for s in raw.split("\n") if s.strip()][: self.cfg.expand_query_max]
         except Exception:
             pass
@@ -129,6 +154,7 @@ class TriRetriever:
         return [h for h in (self._assemble(cid, by_id, parents, sc.get(cid)) for cid in ids) if h]
 
     def search(self, query: str, top_k: Optional[int] = None, channel_k: Optional[int] = None) -> TriResult:
+        query = validate_query_text(query)
         top_k = top_k or self.cfg.top_k
         channel_k = channel_k or self.cfg.channel_k
 
@@ -137,7 +163,7 @@ class TriRetriever:
         # três frentes
         dense = self.store.dense_search(q.dense, channel_k)
         sparse = self.store.sparse_search(q.sparse, channel_k)
-        pool = list({cid for cid, _ in dense} | {cid for cid, _ in sparse})
+        pool = _bounded_candidate_union(dense, sparse)
         struct = self.store.colbert_scores(q.tokens, pool)[:channel_k]
 
         channels = {"semantico": dense, "lexico": sparse, "estrutural": struct}
@@ -182,7 +208,7 @@ class TriRetriever:
         if do_rerank:
             fused = self.reranker.rerank(query, fused, top_k=self.cfg.diversity_pool if do_div else top_k)
 
-        # seleção fermiônica (MAP-DPP): escolhe o CONJUNTO de k, sem redundância
+        # greedy DPP: aproxima um conjunto de k com relevância e diversidade
         if do_div and len(fused) > top_k:
             pool = fused[: self.cfg.diversity_pool]
             vecs = self.store.dense_vecs([h["id"] for h in pool])
