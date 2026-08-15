@@ -2,6 +2,31 @@
   "schema_version": "1.0",
   "graph": "G=(V,E)",
   "base_branch": "upstream/main",
+  "completion": {
+    "recorded_at": "2026-08-14T23:31:00-03:00",
+    "rules": {
+      "RULE-001": "complete",
+      "RULE-002": "complete",
+      "RULE-003": "complete_with_hnsw_experimental",
+      "RULE-004": "complete",
+      "RULE-005": "complete",
+      "RULE-006": "complete",
+      "RULE-007": "complete",
+      "RULE-008": "complete"
+    },
+    "improvements": {
+      "IMPROVEMENT-001": "complete",
+      "IMPROVEMENT-002": "complete_with_hnsw_rejected_by_gate",
+      "IMPROVEMENT-003": "complete",
+      "IMPROVEMENT-004": "complete",
+      "IMPROVEMENT-005": "complete",
+      "IMPROVEMENT-006": "complete",
+      "IMPROVEMENT-007": "complete",
+      "IMPROVEMENT-008": "complete_without_20_percent_claim",
+      "IMPROVEMENT-009": "complete"
+    },
+    "pull_request": "https://github.com/fabiofernandesss/Rag3D/pull/2"
+  },
   "nodes": [
     {
       "id": "RULE-001",
