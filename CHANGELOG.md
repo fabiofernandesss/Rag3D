@@ -30,6 +30,12 @@ que mudou, **por quê** e **como foi verificado**.
   qualquer relatório.
 - Corrige o subset BEIR histórico para seleção por hash independente de qrels e
   corrige métricas com IDs duplicados.
+- Registra benchmark bloqueado e artefatos JSON: 876 testes Python passaram;
+  no test SQLite 1k a V2 reduziu p95 em 11,05%, mas nDCG caiu 1,79% e MRR caiu
+  15,93%. A meta de 20% não foi atingida.
+- Rejeita todos os pontos HNSW `ef_search=100..1000`: o plano foi HNSW natural,
+  porém nenhuma configuração alcançou Recall ANN@20 >= 0,98 por consulta.
+  pgvector exact permanece o modo seguro.
 
 Rollout: `RAG3D_RETRIEVAL_PIPELINE=v2`. Rollback composto:
 `RAG3D_RETRIEVAL_PIPELINE=legacy` e backend `sqlite` ou `postgres-holo`.

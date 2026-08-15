@@ -1,0 +1,129 @@
+{
+  "schema_version": "retrieval-v2-validation-lock/1",
+  "origin_protocol": "validation",
+  "seed": 20260813,
+  "metrics": {
+    "recall_cutoffs": [
+      5,
+      10,
+      20
+    ],
+    "mrr_cutoff": 20,
+    "ndcg_cutoff": 10,
+    "coverage_cutoff": 20,
+    "duplicate_rate_cutoff": 20,
+    "deduplication_policy": "raw_cutoff; duplicate occupies rank and has zero repeated gain",
+    "bootstrap_unit": "paired query",
+    "latency_bootstrap_unit": "query cluster with all repetitions"
+  },
+  "config": {
+    "backends": [
+      "sqlite"
+    ],
+    "pipelines": [
+      "legacy",
+      "v2"
+    ],
+    "encoder": "hash",
+    "dense_dim": 128,
+    "structural_dim": 32,
+    "max_structural_tokens": 64,
+    "top_k": 20,
+    "channel_k": 100,
+    "rrf_k": 60,
+    "structural_candidate_depth": 100,
+    "ablations": [],
+    "remote_write_guard": null,
+    "pgvector_mode": null,
+    "hnsw_minimum_recall_at_k": null,
+    "hnsw": null
+  },
+  "sources": {
+    "dataset_id": "retrieval-v2-synthetic-v1",
+    "dataset_version": "1.0.0",
+    "manifest": "benchmarks/datasets/retrieval_v2_synthetic_v1.json",
+    "generator": "_generate_corpus+_materialize_queries",
+    "source_files_sha256": {
+      "runner": "30fa34418014d860773a07db250aced5458e458eeea031c0fd57fdb2688d762a",
+      "evaluator": "49e915eeab377f7a417e4a049b72fe308d67028dbddfa2d923298e5f2915b008",
+      "runtime_source_closure": "b742bee0c11125ce69aa53067570fd10ae1ba4e0a57bf43db15dced2af8dfc57",
+      "generator": "fc58b49313df9a9b5164dd0f190080bca406db6ef8b1325472242542e583cca0",
+      "manifest": "c884ff5ea99c5a6dfa3bae33eea7da39f7149fd37cea4f4621ddc5006b54e7e7"
+    },
+    "pipeline_files_sha256": {
+      "rag3d/__init__.py": "859ca30e90fa7f918d6b9f780e42e26d347425ae98a4fa072062aff4ce4f14b1",
+      "rag3d/__main__.py": "6d8b7d7846a845059d7a3107143f11131f63c5511d669b44085b15ec5e3d2279",
+      "rag3d/backend.py": "fac8f417a35a83d67f5071cdb26248b468a097416dc05ef804afce65cfb42407",
+      "rag3d/cli.py": "e020b995eca00faad81a1be6a8093f101e24e89880bc45ee7c0d9167ba697884",
+      "rag3d/config.py": "651c1d6070e485131c771977939e4c7bfe980fa2f69757708eca17257835a1d5",
+      "rag3d/diversity.py": "2ed7275de50186a6cde5ebc78a67b168f122754462b900bd6114b5a9ef6e6c0a",
+      "rag3d/encoders.py": "e8c3192ed6e25c6c41f83b30c37c045714049e030f69816e84e5a13ef39e8e22",
+      "rag3d/engine.py": "91d6c281a94f667ce1b7f254102c63acc65f4e410ec4d7c2c45ac6d35be5efa2",
+      "rag3d/evaluation.py": "49e915eeab377f7a417e4a049b72fe308d67028dbddfa2d923298e5f2915b008",
+      "rag3d/fusion.py": "229a6ad8d88df5cc4ccf4c9056cda3e9e9624bc7ac13954cc8d60b693c960216",
+      "rag3d/holo.py": "ad4f3763b5d2c55f79dda6076eaf72b82db701bff9a09bd70befc1576766b538",
+      "rag3d/ingest.py": "2c5893f266ccafc9e0124f103ea957b8f03fc31f09550d7c49ea641818e003ff",
+      "rag3d/llm.py": "df58ea21df1d6be6c36ae646e26519ad693fba9f05e69cb28cb4ebc83cb5f201",
+      "rag3d/memory.py": "fb8809e998753e5133ccb84ff172c990b1d8465ba6761f89ac85b4abe7823541",
+      "rag3d/pgstore.py": "6ca04ec0f2b86ff7c0e1bca092fb29cbe05461322e8f7b2d8685bdcb225e5888",
+      "rag3d/pgvector_store.py": "00803cfc80c0b272a6e8a9feefb3432957d0e051597eb84a8d98ee56657a8789",
+      "rag3d/portable.py": "478ab4eee1f43d500f73e7670c45a86960689dd571fd6a6f2f48f97f5c2eb1b9",
+      "rag3d/reader.py": "e1c24599e4c153dd53c8aee53da678c0e8476e6b49b9a6171c6c5284c94921f3",
+      "rag3d/rerank.py": "33da5e6704c723a62e808fbbe0719af82a3c71f4f52eed84469ba8391e594798",
+      "rag3d/retrieval_v2.py": "182fe992e0baedb6f0ef956691e50b1da97ac7b1dc28c89a67e349e56bca6c77",
+      "rag3d/retrieve.py": "bfd35d521705c61182b9f52769d36f2348a1bb08b153ecee355f98669028fb30",
+      "rag3d/store.py": "c030293a4a670cd5a8579a5318c62bf743f7e7b3fd693300cd884f3d0d0ee509",
+      "rag3d/textproc.py": "62bc7b8c312dfe7261a215ba286cd768b01094c3963481d31ce861f3575d0d38"
+    },
+    "runtime_source_files_sha256": {
+      "rag3d/__init__.py": "859ca30e90fa7f918d6b9f780e42e26d347425ae98a4fa072062aff4ce4f14b1",
+      "rag3d/__main__.py": "6d8b7d7846a845059d7a3107143f11131f63c5511d669b44085b15ec5e3d2279",
+      "rag3d/backend.py": "fac8f417a35a83d67f5071cdb26248b468a097416dc05ef804afce65cfb42407",
+      "rag3d/cli.py": "e020b995eca00faad81a1be6a8093f101e24e89880bc45ee7c0d9167ba697884",
+      "rag3d/config.py": "651c1d6070e485131c771977939e4c7bfe980fa2f69757708eca17257835a1d5",
+      "rag3d/diversity.py": "2ed7275de50186a6cde5ebc78a67b168f122754462b900bd6114b5a9ef6e6c0a",
+      "rag3d/encoders.py": "e8c3192ed6e25c6c41f83b30c37c045714049e030f69816e84e5a13ef39e8e22",
+      "rag3d/engine.py": "91d6c281a94f667ce1b7f254102c63acc65f4e410ec4d7c2c45ac6d35be5efa2",
+      "rag3d/evaluation.py": "49e915eeab377f7a417e4a049b72fe308d67028dbddfa2d923298e5f2915b008",
+      "rag3d/fusion.py": "229a6ad8d88df5cc4ccf4c9056cda3e9e9624bc7ac13954cc8d60b693c960216",
+      "rag3d/holo.py": "ad4f3763b5d2c55f79dda6076eaf72b82db701bff9a09bd70befc1576766b538",
+      "rag3d/ingest.py": "2c5893f266ccafc9e0124f103ea957b8f03fc31f09550d7c49ea641818e003ff",
+      "rag3d/llm.py": "df58ea21df1d6be6c36ae646e26519ad693fba9f05e69cb28cb4ebc83cb5f201",
+      "rag3d/memory.py": "fb8809e998753e5133ccb84ff172c990b1d8465ba6761f89ac85b4abe7823541",
+      "rag3d/pgstore.py": "6ca04ec0f2b86ff7c0e1bca092fb29cbe05461322e8f7b2d8685bdcb225e5888",
+      "rag3d/pgvector_store.py": "00803cfc80c0b272a6e8a9feefb3432957d0e051597eb84a8d98ee56657a8789",
+      "rag3d/portable.py": "478ab4eee1f43d500f73e7670c45a86960689dd571fd6a6f2f48f97f5c2eb1b9",
+      "rag3d/reader.py": "e1c24599e4c153dd53c8aee53da678c0e8476e6b49b9a6171c6c5284c94921f3",
+      "rag3d/rerank.py": "33da5e6704c723a62e808fbbe0719af82a3c71f4f52eed84469ba8391e594798",
+      "rag3d/retrieval_v2.py": "182fe992e0baedb6f0ef956691e50b1da97ac7b1dc28c89a67e349e56bca6c77",
+      "rag3d/retrieve.py": "bfd35d521705c61182b9f52769d36f2348a1bb08b153ecee355f98669028fb30",
+      "rag3d/store.py": "c030293a4a670cd5a8579a5318c62bf743f7e7b3fd693300cd884f3d0d0ee509",
+      "rag3d/textproc.py": "62bc7b8c312dfe7261a215ba286cd768b01094c3963481d31ce861f3575d0d38"
+    }
+  },
+  "protocol": {
+    "split_policy": "fixed disjoint content-key modulo three",
+    "corpus_selection": "sha256(seed + NUL + document_id), before qrels",
+    "warmup": 5,
+    "repetitions": 10,
+    "bootstrap_samples": 10000,
+    "bootstrap_seed": 20260813,
+    "confidence": 0.95
+  },
+  "backends": [
+    "sqlite"
+  ],
+  "hashes": {
+    "config_sha256": "6471768f14e99b3c932648a837fc3f53be2ded4371551209602472fd1bd63213",
+    "dataset_sha256": "e12abf86b1398c009938c289e9d8206b97d7e802e788e95df85ad0b71f5ac347",
+    "manifest_sha256": "c884ff5ea99c5a6dfa3bae33eea7da39f7149fd37cea4f4621ddc5006b54e7e7",
+    "generator_sha256": "fc58b49313df9a9b5164dd0f190080bca406db6ef8b1325472242542e583cca0",
+    "runner_sha256": "30fa34418014d860773a07db250aced5458e458eeea031c0fd57fdb2688d762a",
+    "evaluator_sha256": "49e915eeab377f7a417e4a049b72fe308d67028dbddfa2d923298e5f2915b008",
+    "pipeline_sha256": "b742bee0c11125ce69aa53067570fd10ae1ba4e0a57bf43db15dced2af8dfc57",
+    "runtime_source_closure_sha256": "b742bee0c11125ce69aa53067570fd10ae1ba4e0a57bf43db15dced2af8dfc57",
+    "source_diff_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source_sha256": "c09dda0fa2d174eb682a73a4b03c9bd807330c1667d9a48481d68fc654a1534f",
+    "commit_state_sha256": "18e4bbeee8e5c3daad61d121240e8d36b7e4f2b42ae81fa438b5e05f363688a3"
+  }
+}
