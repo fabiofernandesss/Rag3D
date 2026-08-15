@@ -1,0 +1,131 @@
+{
+  "id": "retrieval-v2-synthetic-v1",
+  "version": "1.0.0",
+  "seed": 20260813,
+  "description": "Frozen mechanism-check corpus and disjoint query templates for Retrieval Engine V2.",
+  "splits": {
+    "calibration": [
+      {
+        "id": "calibration-exact-code",
+        "kind": "single",
+        "target_slot": 0,
+        "query_template": "registro técnico {code}"
+      },
+      {
+        "id": "calibration-topic-deadline",
+        "kind": "single",
+        "target_slot": 3,
+        "query_template": "prazo do projeto {topic} {code}"
+      },
+      {
+        "id": "calibration-hybrid-limit",
+        "kind": "single",
+        "target_slot": 7,
+        "query_template": "qual o limite {limit} do protocolo {code}"
+      },
+      {
+        "id": "calibration-multifact",
+        "kind": "multi",
+        "target_slots": [9, 10],
+        "query_template": "compare os registros {code_0} e {code_1}"
+      },
+      {
+        "id": "calibration-duplicate",
+        "kind": "duplicate",
+        "query_template": "localize todas as cópias do registro {code}"
+      },
+      {
+        "id": "calibration-empty",
+        "kind": "empty",
+        "query": "   "
+      },
+      {
+        "id": "calibration-no-answer",
+        "kind": "no_answer",
+        "query": "qual é o protocolo extraterrestre inexistente ZZZ-404"
+      }
+    ],
+    "validation": [
+      {
+        "id": "validation-identifier-lookup",
+        "kind": "single",
+        "target_slot": 2,
+        "query_template": "encontre a ficha identificada por {code}"
+      },
+      {
+        "id": "validation-schedule-rephrase",
+        "kind": "single",
+        "target_slot": 6,
+        "query_template": "quando termina a iniciativa {topic} de código {code}"
+      },
+      {
+        "id": "validation-budget-rephrase",
+        "kind": "single",
+        "target_slot": 11,
+        "query_template": "teto financeiro {limit} associado a {code}"
+      },
+      {
+        "id": "validation-multifact",
+        "kind": "multi",
+        "target_slots": [12, 14],
+        "query_template": "resuma conjuntamente as fichas {code_0} e {code_1}"
+      },
+      {
+        "id": "validation-duplicate",
+        "kind": "duplicate",
+        "query_template": "há versões idênticas do item {code}"
+      },
+      {
+        "id": "validation-empty",
+        "kind": "empty",
+        "query": "\n\t"
+      },
+      {
+        "id": "validation-no-answer",
+        "kind": "no_answer",
+        "query": "informe a cláusula lunar ausente LUNA-999"
+      }
+    ],
+    "test": [
+      {
+        "id": "test-reference-code",
+        "kind": "single",
+        "target_slot": 4,
+        "query_template": "referência documental {code}"
+      },
+      {
+        "id": "test-completion-question",
+        "kind": "single",
+        "target_slot": 8,
+        "query_template": "data de conclusão para {topic}, referência {code}"
+      },
+      {
+        "id": "test-cap-question",
+        "kind": "single",
+        "target_slot": 13,
+        "query_template": "valor máximo permitido {limit} na ficha {code}"
+      },
+      {
+        "id": "test-multifact",
+        "kind": "multi",
+        "target_slots": [15, 17],
+        "query_template": "quais dados constam em {code_0} junto de {code_1}"
+      },
+      {
+        "id": "test-duplicate",
+        "kind": "duplicate",
+        "query_template": "recupere exemplares repetidos de {code}"
+      },
+      {
+        "id": "test-empty",
+        "kind": "empty",
+        "query": ""
+      },
+      {
+        "id": "test-no-answer",
+        "kind": "no_answer",
+        "query": "procure o documento impossível NEBULA-000"
+      }
+    ]
+  }
+}
