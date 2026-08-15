@@ -1,6 +1,6 @@
 # Grafo de impacto
 
-Este grafo será atualizado a partir do diff final. Arestas indicam consumidores,
+Este grafo reflete o diff final medido. Arestas indicam consumidores,
 interfaces afetadas, testes e rollback. As colunas/dados holográficos permanecem
 compatíveis, mas três FKs nomeadas são adicionadas e validadas em todos os ports.
 

@@ -461,6 +461,16 @@ produção**; a fusão quântica é uma opção falsificável, não uma alegaç�
 > acha o alvo e nada os separa. Diferenciar de verdade exige encoder semântico
 > real + base pública.
 
+### Resultado fechado da Retrieval V2
+
+O protocolo validation -> lock -> test em 1.000 chunks sintéticos não atingiu
+a meta de 20%. Contra legacy + SQLite, a V2 reduziu p95 em 11,05%, enquanto
+nDCG@10 caiu 1,79% e MRR@20 caiu 15,93%. A grade HNSW de `ef_search=100..1000`
+usou o índice naturalmente, mas nenhum ponto passou Recall ANN@20 >= 0,98 em
+todas as consultas. Por isso o rollout continua opt-in e pgvector exact é o
+modo seguro. Metodologia, IC95, hardware, regressões e JSONs estão no
+[relatório reproduzível](docs/benchmarks/retrieval-v2-results.md).
+
 ### Diagnóstico exploratório BEIR (BGE-M3, nDCG@10)
 
 O script histórico abaixo compara estratégias e valores de λ diretamente no

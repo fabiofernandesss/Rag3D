@@ -19,6 +19,11 @@ dataset sintético versionado serve para regressão matemática e performance
 local; não prova generalização. Metodologia, resultados aceitos e limitações
 ficam em [docs/benchmarks/retrieval-v2-results.md](docs/benchmarks/retrieval-v2-results.md).
 
+Resultado fechado: a meta de 20% não foi atingida. No test SQLite 1k, p95
+melhorou 11,05%, nDCG@10 caiu 1,79% e MRR@20 caiu 15,93%. Todos os pontos
+HNSW `ef_search=100..1000` falharam o gate de Recall ANN@20 >= 0,98 por
+consulta; pgvector exact permanece o modo seguro.
+
 No runner BEIR histórico, `max_docs` agora seleciona uma amostra determinística
 por hash de ID, antes e sem acesso aos qrels. Qualquer execução reduzida é
 rotulada smoke e não deve sustentar claim de qualidade.

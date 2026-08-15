@@ -110,4 +110,31 @@ Invariantes públicos a preservar:
 - Pools/arrays sem limite podem amplificar memória, placeholders e tempo de banco.
 - O bypass de corpus pequeno ignora retrieval e precisa ser desativado/registrado em benchmarks.
 
-Este manifest será atualizado no fechamento com módulos, migrations, testes e resultados efetivamente integrados.
+## Estado integrado no fechamento
+
+Código medido no benchmark: `11c2fd6fa4eadf9cc4f4b6f842eedd51824c360d`.
+O delta final adiciona os seguintes componentes sem substituir o caminho
+legacy:
+
+| Superfície | Estado integrado | Evidência |
+| --- | --- | --- |
+| Contrato | `RetrievalBackend`, capabilities, filters, diagnostics, fingerprint e limites comuns | `tests/test_backend_types.py`, adapters e boundaries |
+| SQLite | adapter legacy conformado, transações/savepoints, bounds e ordenação determinística | contract tests e smoke |
+| PostgreSQL holo | adapter conformado, locks/timeout, FKs verificadas, sparse canônico e rollback | PostgreSQL 17.6 real + contratos Node/Java |
+| pgvector | tabelas `rag3d_v2_*`, exact, HNSW, filtros, health, catálogo e migration idempotente | 34 testes de integração pgvector e EXPLAIN natural |
+| Pipeline V2 | dense + sparse -> RRF -> structural late rerank -> reranker -> diversidade -> hidratação/stitch | testes de lineage, properties e fachada E2E |
+| Avaliação | métricas deduplicadas, bootstrap pareado, validation lock, runner 1k/10k e ablações | JSONs em `benchmarks/results/` |
+| Cross-language | caminho Hash legacy preservado; Node/Java recusam certificação V2 que não implementam | 24 testes Node e checks Java |
+| CI | Python/PostgreSQL/pgvector, Node e Java | `.github/workflows/retrieval-v2.yml` |
+
+A suíte final executou 876 testes Python com PostgreSQL/pgvector real. Nos
+cinco módulos novos foram cobertas 2.539/2.850 linhas (89,09%) e 1.013/1.264
+branches (80,14%). Node passou 24/24; Java compilou e passou `ParityCheck` e
+`PgHoloStoreContractCheck`.
+
+As divergências 1--5 e 8--10 acima foram tratadas pelo contrato, pelos defaults
+condicionais, pela classificação explícita do structural, pelas transações e
+pela documentação. As afirmações de erro int8 inferior a 1%, superioridade
+global e paridade BGE-M3 continuam deliberadamente rejeitadas por falta de
+evidência. A meta de 20% não foi atingida; consulte
+[`docs/benchmarks/retrieval-v2-results.md`](../../benchmarks/retrieval-v2-results.md).
