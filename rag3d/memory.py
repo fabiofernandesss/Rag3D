@@ -24,7 +24,7 @@ from typing import List, Optional
 
 from .config import TriRagConfig
 from .encoders import BaseEncoder
-from .llm import LLM
+from .llm import LLM, validate_llm_text
 from .retrieve import TriResult, TriRetriever
 from .store import TriStore
 from .textproc import estimate_tokens
@@ -49,6 +49,8 @@ class ChatMemory:
 
     def record_turn(self, user_msg: str, assistant_msg: str) -> int:
         """Salva o turno como memória episódica tridimensional."""
+        user_msg = validate_llm_text(user_msg)
+        assistant_msg = validate_llm_text(assistant_msg)
         turn_no = self.store.last_turn_no() + 1
         text = f"[usuário] {user_msg}\n[assistente] {assistant_msg}"
         n_tok = estimate_tokens(text)
@@ -73,26 +75,35 @@ class ChatMemory:
         ]
         body = "\n---\n".join(t["text"][:1200] for t in turns)
         try:
-            new = self.llm.complete(
+            raw = self.llm.complete(
                 "Você mantém a memória de longo prazo de uma conversa.",
                 [{"role": "user", "content": _SUMMARY_PROMPT.format(summary=old, turns=body)}],
                 max_tokens=700,
-            ).strip()
+            )
+            new = validate_llm_text(raw).strip()
         except Exception:
             return
-        self.store.set_meta("rolling_summary", new)
-        self.store.set_meta("rolling_summary_turn", str(upto_turn))
-        # resumo também vira memória pesquisável (consolidação)
-        old_id = self.store.get_meta("rolling_summary_chunk")
-        if old_id:
-            self.store.delete_chunk(int(old_id))
+        # Slow/model work and vector allocation stay outside the write
+        # transaction.  Publication of metadata and the searchable summary is
+        # one atomic unit across SQLite, postgres-holo, and pgvector.
         vec = self.encoder.encode([f"[resumo da conversa] {new}"])[0]
-        cid = self.store.add_chunk(
-            None, new, f"[resumo da conversa] {new}", estimate_tokens(new), vec,
-            kind="summary", importance=0.9,
-        )
-        self.store.set_meta("rolling_summary_chunk", str(cid))
-        self.store.commit()
+        token_count = estimate_tokens(new)
+        with self.store.transaction():
+            old_id = self.store.get_meta("rolling_summary_chunk")
+            self.store.set_meta("rolling_summary", new)
+            self.store.set_meta("rolling_summary_turn", str(upto_turn))
+            if old_id:
+                self.store.delete_chunk(int(old_id))
+            cid = self.store.add_chunk(
+                None,
+                new,
+                f"[resumo da conversa] {new}",
+                token_count,
+                vec,
+                kind="summary",
+                importance=0.9,
+            )
+            self.store.set_meta("rolling_summary_chunk", str(cid))
 
     # ----------------------------------------------------------- contexto
 
