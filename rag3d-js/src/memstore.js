@@ -14,6 +14,7 @@ export class MemStore {
     this.docs = [];
     this.grams = [];
     this.seq = 0;
+    this._batchSnapshot = null;
     if (file && existsSync(file)) this._load();
   }
 
@@ -29,7 +30,8 @@ export class MemStore {
     }));
   }
 
-  _persist() {
+  _persist(force = false) {
+    if (this._batchSnapshot !== null && !force) return;
     if (!this.file) return;
     mkdirSync(path.dirname(this.file), { recursive: true });
     writeFileSync(this.file, JSON.stringify({
@@ -45,6 +47,19 @@ export class MemStore {
 
   async getMeta(k) { return this.meta.has(k) ? this.meta.get(k) : null; }
   async setMeta(k, v) { this.meta.set(k, v); this._persist(); }
+  async ensureEncoderFingerprint(expected) {
+    const stored = this.meta.has("encoder") ? this.meta.get("encoder") : null;
+    if (stored === null && (this.docs.length || this.grams.length)) {
+      throw new Error("missing encoder fingerprint on populated local index");
+    }
+    if (stored !== null && stored !== expected) {
+      throw new Error("incompatible encoder fingerprint");
+    }
+    if (stored === null) {
+      this.meta.set("encoder", expected);
+      this._persist();
+    }
+  }
 
   async addDoc(source, title, nTokens, meta = {}) {
     const id = ++this.seq;
@@ -73,10 +88,30 @@ export class MemStore {
     return id;
   }
 
-  // batch é no-op em memória (mantém a mesma interface do PgHoloStore)
-  async begin() {}
-  async commitBatch() { this._persist(); }
-  async rollbackBatch() {}
+  async begin() {
+    if (this._batchSnapshot !== null) throw new Error("nested batches are not supported");
+    this._batchSnapshot = structuredClone({
+      meta: this.meta,
+      docs: this.docs,
+      grams: this.grams,
+      seq: this.seq,
+    });
+  }
+  async commitBatch() {
+    if (this._batchSnapshot === null) throw new Error("no active batch");
+    this._persist(true);
+    this._batchSnapshot = null;
+  }
+  async rollbackBatch() {
+    if (this._batchSnapshot === null) return;
+    const snapshot = this._batchSnapshot;
+    this.meta = snapshot.meta;
+    this.docs = snapshot.docs;
+    this.grams = snapshot.grams;
+    this.seq = snapshot.seq;
+    this._batchSnapshot = null;
+    this._persist();
+  }
 
   async commit() { this._persist(); }
 

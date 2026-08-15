@@ -8,7 +8,7 @@ import { ChatMemory } from "./memory.js";
 import { MemStore } from "./memstore.js";
 import { Reader } from "./reader.js";
 import { Reranker } from "./rerank.js";
-import { TriRetriever } from "./retrieve.js";
+import { TriRetriever, validateQuery } from "./retrieve.js";
 
 export class TriRag {
   constructor(cfg, store, llm, axisLlms = {}) {
@@ -34,19 +34,30 @@ export class TriRag {
       mkdirSync(cfg.dataDir, { recursive: true });
       store = new MemStore(path.join(cfg.dataDir, "trirag.json"));
     }
-    // guarda de encoder (nome + dims)
-    const fingerprint = `hash:${cfg.denseDim}:${cfg.colbertDim}`;
-    const prev = await store.getMeta("encoder");
-    if (prev && prev !== fingerprint)
-      throw new Error(`Índice criado com encoder '${prev}', agora '${fingerprint}'. Use a mesma config ou apague o índice.`);
-    await store.setMeta("encoder", fingerprint);
+    try {
+      // guarda de encoder (nome + dims)
+      const fingerprint = `hash:${cfg.denseDim}:${cfg.colbertDim}`;
+      if (typeof store.ensureEncoderFingerprint === "function") {
+        await store.ensureEncoderFingerprint(fingerprint);
+      } else {
+        const prev = await store.getMeta("encoder");
+        if (prev && prev !== fingerprint) throw new Error("incompatible encoder fingerprint");
+        if (!prev && await store.nChunks() > 0) {
+          throw new Error("missing encoder fingerprint on populated index");
+        }
+        await store.setMeta("encoder", fingerprint);
+      }
 
-    let realLlm;
-    if (typeof llm === "function") realLlm = new CallableLLM(llm);
-    else if (llm) realLlm = llm;
-    else realLlm = await makeLLM(cfg.llmProvider, cfg.llmModel);
+      let realLlm;
+      if (typeof llm === "function") realLlm = new CallableLLM(llm);
+      else if (llm) realLlm = llm;
+      else realLlm = await makeLLM(cfg.llmProvider, cfg.llmModel);
 
-    return new TriRag(cfg, store, realLlm, axisLlms);
+      return new TriRag(cfg, store, realLlm, axisLlms);
+    } catch (error) {
+      try { if (store?.close) await store.close(); } catch { /* preserve primary error */ }
+      throw error;
+    }
   }
 
   ingest(text, source = "inline", title = "") { return this.ingestor.ingestText(text, source, title); }
@@ -54,6 +65,7 @@ export class TriRag {
   search(query, topK = null) { return this.retriever.search(query, topK); }
 
   async ask(query, mode = null) {
+    query = validateQuery(query);
     const ctx = await this.memory.buildContext(query, this.retriever);
     const out = await this.reader.read(query, ctx, mode);
     out.context = ctx;
@@ -61,6 +73,7 @@ export class TriRag {
   }
 
   async chat(userMsg, mode = null) {
+    userMsg = validateQuery(userMsg);
     const ctx = await this.memory.buildContext(userMsg, this.retriever);
     const out = await this.reader.read(userMsg, ctx, mode);
     out.context = ctx;
@@ -72,6 +85,7 @@ export class TriRag {
 
   // versão streaming: onToken(delta) é chamado enquanto a resposta final sai
   async chatStream(userMsg, onToken, mode = null) {
+    userMsg = validateQuery(userMsg);
     const ctx = await this.memory.buildContext(userMsg, this.retriever);
     const out = await this.reader.readStream(userMsg, ctx, onToken, mode);
     out.context = ctx;
@@ -89,7 +103,7 @@ export class TriRag {
       turnos: await this.store.lastTurnNo(),
       fusao: this.cfg.fusion,
       backend: this.cfg.pgDsn ? "postgres-holo (sem pgvector)" : "memoria/json",
-      dados: this.cfg.pgDsn || this.cfg.dataDir,
+      dados: this.cfg.pgDsn ? "postgresql (redacted)" : this.cfg.dataDir,
     };
   }
 

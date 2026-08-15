@@ -8,6 +8,10 @@ import { HOLO_BITS, Holographer } from "./holo.js";
 
 const KINDS = "('chunk','turn','summary')";
 const now = () => Date.now() / 1000;
+const FINGERPRINT_LOCK_ID = 0x5241473344465032n;
+const FINGERPRINT_LOCK_TIMEOUT_MS = 5000;
+const SCHEMA_LOCK_TIMEOUT_MS = 5000;
+const SCHEMA_STATEMENT_TIMEOUT_MS = 30000;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS holo_meta(key TEXT PRIMARY KEY, value TEXT);
@@ -15,7 +19,11 @@ CREATE TABLE IF NOT EXISTS holo_docs(
   id BIGSERIAL PRIMARY KEY, source TEXT, title TEXT,
   created DOUBLE PRECISION, n_tokens INT, meta TEXT);
 CREATE TABLE IF NOT EXISTS holo_grams(
-  id BIGSERIAL PRIMARY KEY, doc_id BIGINT, parent_id BIGINT,
+  id BIGSERIAL PRIMARY KEY,
+  doc_id BIGINT CONSTRAINT holo_grams_doc_fk
+    REFERENCES holo_docs(id) ON DELETE CASCADE,
+  parent_id BIGINT CONSTRAINT holo_grams_parent_fk
+    REFERENCES holo_grams(id) ON DELETE SET NULL,
   kind TEXT NOT NULL DEFAULT 'chunk',
   pos INT, text TEXT NOT NULL, ctx TEXT,
   n_tokens INT, created DOUBLE PRECISION,
@@ -26,9 +34,76 @@ CREATE INDEX IF NOT EXISTS idx_grams_kind ON holo_grams(kind);
 CREATE INDEX IF NOT EXISTS idx_grams_doc ON holo_grams(doc_id);
 CREATE INDEX IF NOT EXISTS idx_grams_bands ON holo_grams USING GIN(bands);
 CREATE TABLE IF NOT EXISTS holo_spectrum(
-  term BIGINT NOT NULL, gram_id BIGINT NOT NULL, weight REAL NOT NULL);
+  term BIGINT NOT NULL,
+  gram_id BIGINT NOT NULL CONSTRAINT holo_spectrum_gram_fk
+    REFERENCES holo_grams(id) ON DELETE CASCADE,
+  weight REAL NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_spectrum_term ON holo_spectrum(term);
-CREATE INDEX IF NOT EXISTS idx_spectrum_gram ON holo_spectrum(gram_id);`;
+CREATE INDEX IF NOT EXISTS idx_spectrum_gram ON holo_spectrum(gram_id);
+DO $rag3d$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid='holo_grams'::regclass AND conname='holo_grams_doc_fk'
+  ) THEN
+    ALTER TABLE holo_grams ADD CONSTRAINT holo_grams_doc_fk
+      FOREIGN KEY(doc_id) REFERENCES holo_docs(id) ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid='holo_grams'::regclass AND conname='holo_grams_parent_fk'
+  ) THEN
+    ALTER TABLE holo_grams ADD CONSTRAINT holo_grams_parent_fk
+      FOREIGN KEY(parent_id) REFERENCES holo_grams(id) ON DELETE SET NULL NOT VALID;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conrelid='holo_spectrum'::regclass AND conname='holo_spectrum_gram_fk'
+  ) THEN
+    ALTER TABLE holo_spectrum ADD CONSTRAINT holo_spectrum_gram_fk
+      FOREIGN KEY(gram_id) REFERENCES holo_grams(id) ON DELETE CASCADE NOT VALID;
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    WHERE c.conrelid='holo_grams'::regclass
+      AND c.conname='holo_grams_doc_fk' AND c.contype='f'
+      AND c.confrelid='holo_docs'::regclass AND c.confdeltype='c'
+      AND c.conkey=ARRAY[(SELECT attnum FROM pg_attribute
+        WHERE attrelid='holo_grams'::regclass AND attname='doc_id')]
+      AND c.confkey=ARRAY[(SELECT attnum FROM pg_attribute
+        WHERE attrelid='holo_docs'::regclass AND attname='id')]
+  ) THEN
+    RAISE EXCEPTION 'incompatible holo_grams_doc_fk constraint';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    WHERE c.conrelid='holo_grams'::regclass
+      AND c.conname='holo_grams_parent_fk' AND c.contype='f'
+      AND c.confrelid='holo_grams'::regclass AND c.confdeltype='n'
+      AND c.conkey=ARRAY[(SELECT attnum FROM pg_attribute
+        WHERE attrelid='holo_grams'::regclass AND attname='parent_id')]
+      AND c.confkey=ARRAY[(SELECT attnum FROM pg_attribute
+        WHERE attrelid='holo_grams'::regclass AND attname='id')]
+  ) THEN
+    RAISE EXCEPTION 'incompatible holo_grams_parent_fk constraint';
+  END IF;
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint c
+    WHERE c.conrelid='holo_spectrum'::regclass
+      AND c.conname='holo_spectrum_gram_fk' AND c.contype='f'
+      AND c.confrelid='holo_grams'::regclass AND c.confdeltype='c'
+      AND c.conkey=ARRAY[(SELECT attnum FROM pg_attribute
+        WHERE attrelid='holo_spectrum'::regclass AND attname='gram_id')]
+      AND c.confkey=ARRAY[(SELECT attnum FROM pg_attribute
+        WHERE attrelid='holo_grams'::regclass AND attname='id')]
+  ) THEN
+    RAISE EXCEPTION 'incompatible holo_spectrum_gram_fk constraint';
+  END IF;
+END
+$rag3d$;
+ALTER TABLE holo_grams VALIDATE CONSTRAINT holo_grams_doc_fk;
+ALTER TABLE holo_grams VALIDATE CONSTRAINT holo_grams_parent_fk;
+ALTER TABLE holo_spectrum VALIDATE CONSTRAINT holo_spectrum_gram_fk;`;
 
 const COLS = "id,doc_id,parent_id,kind,pos,text,ctx,n_tokens,created,importance,turn_no,accessed_turn";
 
@@ -36,7 +111,6 @@ export class PgHoloStore {
   constructor(client, denseDim, colbertDim) {
     this.db = client;
     this.holo = new Holographer(denseDim, colbertDim);
-    this._nCache = null;
     this._inBatch = false; // uma transação aberta englobando várias escritas
     this.BAND_PREFILTER_THRESHOLD = 20000;
     this.PREFETCH_FACTOR = 4;
@@ -45,16 +119,42 @@ export class PgHoloStore {
 
   // agrupa muitas escritas numa transação só (ingestão de doc grande) — 1 fsync
   async begin() { await this.db.query("BEGIN"); this._inBatch = true; }
-  async commitBatch() { await this.db.query("COMMIT"); this._inBatch = false; this._nCache = null; }
-  async rollbackBatch() { await this.db.query("ROLLBACK"); this._inBatch = false; this._nCache = null; }
+  async commitBatch() { await this.db.query("COMMIT"); this._inBatch = false; }
+  async rollbackBatch() { await this.db.query("ROLLBACK"); this._inBatch = false; }
 
   static async connect(dsn, denseDim, colbertDim) {
-    const { default: pg } = await import("pg");
-    const client = new pg.Client({ connectionString: dsn });
-    await client.connect();
-    const store = new PgHoloStore(client, denseDim, colbertDim);
-    await client.query(SCHEMA);
-    return store;
+    let client;
+    try {
+      const { default: pg } = await import("pg");
+      client = new pg.Client({ connectionString: dsn });
+    } catch {
+      throw new Error("postgres-holo initialization failed");
+    }
+    return PgHoloStore._connectClient(client, denseDim, colbertDim);
+  }
+
+  static async _connectClient(client, denseDim, colbertDim) {
+    let begun = false;
+    try {
+      await client.connect();
+      const store = new PgHoloStore(client, denseDim, colbertDim);
+      await client.query("BEGIN");
+      begun = true;
+      await client.query("SELECT set_config('lock_timeout',$1,true)",
+        [`${SCHEMA_LOCK_TIMEOUT_MS}ms`]);
+      await client.query("SELECT set_config('statement_timeout',$1,true)",
+        [`${SCHEMA_STATEMENT_TIMEOUT_MS}ms`]);
+      await client.query(SCHEMA);
+      await client.query("COMMIT");
+      begun = false;
+      return store;
+    } catch {
+      if (begun) {
+        try { await client.query("ROLLBACK"); } catch { /* preserve safe primary error */ }
+      }
+      try { await client.end(); } catch { /* preserve safe primary error */ }
+      throw new Error("postgres-holo initialization failed");
+    }
   }
 
   async close() { await this.db.end(); }
@@ -62,7 +162,6 @@ export class PgHoloStore {
   // limpa todos os documentos (mantém holo_meta com o fingerprint do encoder)
   async reset() {
     await this.db.query("TRUNCATE holo_grams, holo_spectrum, holo_docs");
-    this._nCache = null;
   }
 
   // ------------------------------------------------------------- meta ---
@@ -75,6 +174,60 @@ export class PgHoloStore {
       "INSERT INTO holo_meta VALUES($1,$2) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",
       [key, value]
     );
+  }
+
+  // Serializa a publicação do fingerprint com o mesmo advisory-lock usado
+  // pelo adapter Python. O timeout é local à transação e evita inicialização
+  // bloqueada indefinidamente por outro processo/language runtime.
+  async ensureEncoderFingerprint(expected) {
+    if (this._inBatch) throw new Error("fingerprint initialization requires an idle store");
+    let begun = false;
+    const safeError = (message) => Object.assign(new Error(message), { rag3dSafe: true });
+    try {
+      await this.db.query("BEGIN");
+      begun = true;
+      await this.db.query("SELECT set_config('lock_timeout',$1,true)",
+        [`${FINGERPRINT_LOCK_TIMEOUT_MS}ms`]);
+      await this.db.query("SELECT pg_advisory_xact_lock($1::bigint)",
+        [FINGERPRINT_LOCK_ID.toString()]);
+
+      const v2Stored = Boolean((await this.db.query(
+        "SELECT EXISTS(SELECT 1 FROM holo_meta " +
+        "WHERE key IN ('retrieval_v2_fingerprint','retrieval_v2_fingerprint_sha256')) " +
+        "AS v2_stored"
+      )).rows[0]?.v2_stored);
+      if (v2Stored) {
+        throw safeError("retrieval V2 holographic index requires the Python adapter");
+      }
+
+      let stored = (await this.db.query(
+        "SELECT value FROM holo_meta WHERE key='encoder'"
+      )).rows[0]?.value ?? null;
+      if (stored === null) {
+        const populated = Boolean((await this.db.query(
+          "SELECT EXISTS(SELECT 1 FROM holo_grams LIMIT 1) AS populated"
+        )).rows[0]?.populated);
+        if (populated) {
+          throw safeError("missing encoder fingerprint on populated holographic index");
+        }
+        await this.db.query(
+          "INSERT INTO holo_meta(key,value) VALUES('encoder',$1) ON CONFLICT(key) DO NOTHING",
+          [expected],
+        );
+        stored = (await this.db.query(
+          "SELECT value FROM holo_meta WHERE key='encoder'"
+        )).rows[0]?.value ?? null;
+      }
+      if (stored !== expected) throw safeError("incompatible encoder fingerprint");
+      await this.db.query("COMMIT");
+      begun = false;
+    } catch (error) {
+      if (begun) {
+        try { await this.db.query("ROLLBACK"); } catch { /* preserve primary failure */ }
+      }
+      if (error?.rag3dSafe) throw error;
+      throw new Error("postgres-holo fingerprint initialization failed");
+    }
   }
 
   // ------------------------------------------------------------ escrita ---
@@ -111,7 +264,6 @@ export class PgHoloStore {
       [docId, parentId, kind, pos, text, ctx, nTokens, now(), importance, turnNo,
        bits, bands, echo, konst, vec.tokens.length, terms, weights]
     );
-    this._nCache = null;
     return Number(r.rows[0].id);
   }
 
@@ -128,7 +280,6 @@ export class PgHoloStore {
   async deleteChunk(chunkId) {
     await this.db.query("DELETE FROM holo_grams WHERE id=$1", [chunkId]);
     await this.db.query("DELETE FROM holo_spectrum WHERE gram_id=$1", [chunkId]);
-    this._nCache = null;
   }
 
   // ------------------------------------------------------------ leitura ---
@@ -170,11 +321,10 @@ export class PgHoloStore {
   }
 
   async nChunks() {
-    if (this._nCache === null) {
-      const r = await this.db.query(`SELECT COUNT(*) AS c FROM holo_grams WHERE kind IN ${KINDS}`);
-      this._nCache = Number(r.rows[0].c);
-    }
-    return this._nCache;
+    // Do not cache across calls: other Python/Node/Java processes may ingest
+    // concurrently and both dense prefiltering and sparse IDF depend on N.
+    const r = await this.db.query(`SELECT COUNT(*) AS c FROM holo_grams WHERE kind IN ${KINDS}`);
+    return Number(r.rows[0].c);
   }
 
   async lastTurnNo() {
@@ -219,7 +369,7 @@ export class PgHoloStore {
     if (big && rows.length < prefetch / 2) rows = await scan(false); // fallback recall
     if (!rows.length) return [];
 
-    // re-pontuação exata pelo eco int8
+    // re-pontuação aproximada pelo eco int8 quantizado
     const q = qvec;
     const scored = rows.map((row) => {
       const echo = Holographer.dequantize(new Uint8Array(row.echo));
@@ -235,21 +385,34 @@ export class PgHoloStore {
   async sparseSearch(qsparse, k) {
     if (!qsparse.size) return [];
     const terms = [...qsparse.keys()];
-    const nDocs = Math.max(1, await this.nChunks());
-    // uma query só, SEM join: só grams pesquisáveis têm postings (parents não
-    // recebem spectrum), então o join+filtro de kind era redundante.
+    const weights = terms.map((term) => qsparse.get(term));
     const r = await this.db.query(
-      `SELECT term, gram_id, weight, COUNT(*) OVER (PARTITION BY term) AS df
-       FROM holo_spectrum WHERE term = ANY($1)`, [terms]
+      `WITH query_terms(term,qweight) AS (
+         SELECT * FROM unnest($1::bigint[],$2::double precision[])
+       ), universe AS (
+         SELECT GREATEST(COUNT(*),1)::double precision AS n_docs
+         FROM holo_grams WHERE kind IN ('chunk','turn','summary')
+       ), term_df AS (
+         SELECT p.term, COUNT(DISTINCT p.gram_id)::double precision AS df
+         FROM holo_spectrum p JOIN holo_grams g ON g.id=p.gram_id
+         JOIN query_terms q ON q.term=p.term
+         WHERE g.kind IN ('chunk','turn','summary') GROUP BY p.term
+       ), scored AS (
+         SELECT p.gram_id, SUM(q.qweight::double precision *
+           p.weight::double precision * LN(1.0 +
+           (u.n_docs - d.df + 0.5) / (d.df + 0.5))) AS score
+         FROM holo_spectrum p JOIN holo_grams g ON g.id=p.gram_id
+         JOIN query_terms q ON q.term=p.term
+         JOIN term_df d ON d.term=p.term CROSS JOIN universe u
+         WHERE g.kind IN ('chunk','turn','summary') GROUP BY p.gram_id
+       ) SELECT gram_id,score FROM scored
+       ORDER BY score DESC,gram_id ASC LIMIT $3`, [terms, weights, k]
     );
-    const scores = new Map();
-    for (const row of r.rows) {
-      const t = Number(row.term), df = Number(row.df);
-      const idf = Math.log(1.0 + (nDocs - df + 0.5) / (df + 0.5));
-      const gid = Number(row.gram_id);
-      scores.set(gid, (scores.get(gid) || 0) + qsparse.get(t) * Number(row.weight) * idf);
+    const out = r.rows.map((row) => [Number(row.gram_id), Number(row.score)]);
+    if (out.some((row) => !Number.isFinite(row[1]))) {
+      throw new Error("sparse scores must be finite");
     }
-    return [...scores.entries()].sort((a, b) => b[1] - a[1] || a[0] - b[0]).slice(0, k);
+    return out;
   }
 
   // ----------------------------------------------- eixo 3: estrutural ----

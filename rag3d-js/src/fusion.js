@@ -16,7 +16,11 @@ function minmax(ranking) {
   if (hi - lo < 1e-12) {
     for (const [cid] of ranking) m.set(cid, 1.0);
   } else {
-    for (const [cid, s] of ranking) m.set(cid, (s - lo) / (hi - lo));
+    // Scale before subtracting so opposite finite extremes do not overflow.
+    const scale = Math.max(Math.abs(lo), Math.abs(hi), 1.0);
+    const loScaled = lo / scale;
+    const span = hi / scale - loScaled;
+    for (const [cid, s] of ranking) m.set(cid, (s / scale - loScaled) / span);
   }
   return m;
 }
@@ -34,8 +38,8 @@ function phases(ranking) {
 
 // Coerência do canal — quão DECIDIDO ele está nesta consulta (pureza Tr(rho²)
 // da distribuição de pontuações, reescalada para [0,1]). Espelha fusion.py.
-// EXPERIMENTAL — desligado por padrão. Tr(rho²) diagonal É a entropia de
-// Rényi-2 (não é conceito novo); decisão de pontuação prediz mal QUAL canal
+// EXPERIMENTAL — desligado por padrão. Tr(rho²) é a pureza e determina
+// H₂=-log Tr(rho²); não é a própria entropia. Decisão de pontuação prediz mal QUAL canal
 // está certo; e canal com poucos candidatos parece trivialmente decidido —
 // por isso o piso de 3 candidatos. Ver fusion.py para a nota completa.
 export function coherence(normMap) {
@@ -109,7 +113,10 @@ export function rrfFuse(channels, weights, topK, rrfK = 60) {
   const scores = new Map(), found = new Map();
   for (const name of Object.keys(channels)) {
     const w = weights[name] ?? 1.0;
+    const seen = new Set();
     channels[name].forEach(([cid], rank) => {
+      if (seen.has(cid)) return;
+      seen.add(cid);
       scores.set(cid, (scores.get(cid) || 0) + w / (rrfK + rank + 1));
       found.set(cid, [...(found.get(cid) || []), name]);
     });
@@ -148,8 +155,9 @@ export function fuse(channels, weightsArr, topK, method = "quantum", interferenc
 // Dois documentos idênticos = duas partículas no mesmo estado: o determinante
 // zera (EXCLUSÃO DE PAULI). Redundância proibida por construção.
 //
-// É um Determinantal Point Process (Kulesza & Taskar); o argmax sai do guloso
-// com atualização de Cholesky em O(k²N) (Chen et al. 2018). Espelha fusion.py
+// É um Determinantal Point Process (Kulesza & Taskar); o guloso aproxima o
+// objetivo log-det com Cholesky incremental, sem resolver o MAP global.
+// O custo inclui similaridades O(NkD), além das atualizações O(Nk²).
 // bit a bit (mesmo float64, mesma ordem de operações).
 export function fermionicSelect(items, vectors, topK, diversity = 0.0) {
   const ids = items.map(([i]) => i);

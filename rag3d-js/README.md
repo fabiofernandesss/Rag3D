@@ -6,7 +6,9 @@ interferência quântica, Hologramas Textuais e memória infinita.
 O diferencial: **hologramas compatíveis bit a bit com a versão Python**. Um
 documento ingerido em Python fica gravado no mesmo Postgres com uma assinatura
 que o JS recomputa idêntica (Hamming 0/1024) — então os dois consultam e
-alimentam o **mesmo índice**. RAG que funciona entre linguagens de programação,
+alimentam o **mesmo índice Hash legado**. Índices certificados pela Retrieval V2
+são recusados pelo adapter JavaScript até existir fingerprint V2 portátil. RAG
+que funciona entre linguagens de programação no contrato legado,
 além de entre línguas humanas.
 
 Zero dependências obrigatórias (usa `fetch`, `crypto` e o PRNG portável do
