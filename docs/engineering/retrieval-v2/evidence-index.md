@@ -30,6 +30,4 @@
 | Fronteira HNSW | JSONs `hnsw-ef{100,200,400,800,1000}-10k` | exact ground truth, plano natural, recall-latência | sem filtros; todos os pontos rejeitados pelo gate por consulta |
 | Revisão independente | relatório interno `AGENT-INDEPENDENT-REVIEWER` | código spec-compliant após correções adversariais | relatório interno não é versionado |
 | Meta de 20% | `docs/benchmarks/retrieval-v2-results.md` | cálculo, IC, guardrails e regressões | meta não atingida |
-
-O número e a URL do Pull Request serão registrados após a operação externa ser
-verificada; nenhum PR é considerado evidência antes disso.
+| Entrega upstream | [PR #1](https://github.com/fabiofernandesss/Rag3D/pull/1) | branch `rogerin:feat/retrieval-engine-v2` para `main`, estado OPEN verificado | checks remotos podem continuar após esta entrega |

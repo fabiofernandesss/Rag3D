@@ -9,7 +9,7 @@
 | RULE-005 | AGENT-EVALUATION; AGENT-EVALUATION-REVIEW | runner estatístico | 79 focais de avaliação + suíte global | validation lock -> test; IC95 | test JSON clean e lock canônico | concluído |
 | RULE-006 | AGENT-PERFORMANCE; AGENT-OPTIMIZE-1/2; AGENT-VERIFY-1/2 | diagnostics/profiling/tuning | diagnostics e bounds | p50/p95/p99; ingest; RSS; storage | batching e HNSW rejeitados sem esconder regressões | concluído |
 | RULE-007 | AGENT-TESTS; AGENT-JS-JAVA-COMPAT; AGENT-COVERAGE-GATE-FINAL | suíte/CI | Python 876; PG real; Node 24; Java checks | quality gates | workflow CI e cobertura consolidada | concluído |
-| RULE-008 | AGENT-GIT-PR | commits/push/PR | diff checks e secret scan | artefatos no PR | commits atômicos locais | aguarda URL do PR |
+| RULE-008 | AGENT-GIT-PR | commits/push/PR | diff checks e secret scan | artefatos no PR | 9 commits; branch no fork; [PR #1](https://github.com/fabiofernandesss/Rag3D/pull/1) verificado | concluído |
 | IMPROVEMENT-001 | AGENT-BACKEND-ARCHITECT; AGENT-ADAPTERS-IMPL | backend contract/adapters | contract suite comum | modos por backend | capabilities truthfully testadas | concluído |
 | IMPROVEMENT-002 | AGENT-PGVECTOR; AGENT-HNSW-MATH; AGENT-PGVECTOR-IMPL | pgvector exact/HNSW | integração/EXPLAIN/catálogo | exact 1k/10k; H100--H1000 | exact aceito; todos HNSW rejeitados | concluído com limitação registrada |
 | IMPROVEMENT-003 | AGENT-FUSION; AGENT-PIPELINE-IMPL | pipeline V2/RRF/quantum | RRF properties; quantum parity | ablação RRF/quantum | RRF default apenas em V2 | concluído |
