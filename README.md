@@ -16,7 +16,8 @@
 
 **Um método novo de RAG.** Cada texto vira um objeto de **três dimensões**, buscado por três eixos ao mesmo tempo, combinado por um cálculo de **interferência quântica**, lido por **qualquer IA** — e rodando até num **Postgres comum, sem `pgvector`**.
 
-Funciona em **qualquer língua** e o mesmo índice serve **Python, JavaScript e Java** (assinaturas idênticas bit a bit).
+O índice holográfico **Hash** serve Python, JavaScript e Java com assinaturas
+idênticas bit a bit. BGE-M3 e o backend pgvector da Retrieval V2 são Python-only.
 
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](#)
 [![Node](https://img.shields.io/badge/Node-18+-339933?logo=nodedotjs&logoColor=white)](#)
@@ -41,7 +42,7 @@ Funciona em **qualquer língua** e o mesmo índice serve **Python, JavaScript e 
 [Configuração](#️-configuração-variáveis-de-ambiente) ·
 [Testes](#-rodando-os-testes) ·
 [Avaliação e ablação](#-avaliação-e-ablação-honesto) ·
-[Por que sem banco vetorial](#-por-que-sem-banco-vetorial) ·
+[Backends de armazenamento](#backends-de-armazenamento) ·
 [Limitações e roadmap](#-limitações-e-roadmap) ·
 [Honestidade](#-honestidade-científica)
 
@@ -63,11 +64,14 @@ Todo texto — documento **ou** turno de conversa — nasce em três formas ao s
 |---|---|---|---|
 | 🟣 **Semântico** | significado, paráfrase | vetor denso 1024-d | cosseno |
 | 🔵 **Léxico** | termos exatos, nomes, números, leis | esparso invertido | IDF |
-| 🟢 **Estrutural** | ordem, frases, correspondência fina | multi-vetor (token a token) | MaxSim |
+| 🟢 **Estrutural** | ordem, frases, correspondência fina | multi-vetor (token a token) | MaxSim sobre candidatos dense+lexical |
 
-Na busca, a pergunta é projetada nos **mesmos três eixos** e cada um devolve **a sua própria resposta**. São as *"três respostas do tridimensional"*.
+Dense e lexical são os recuperadores globais. O estrutural pontua somente a
+união limitada de candidatos produzida pelos dois e devolve uma terceira visão
+como **late-interaction reranker**; não recupera um item ausente dessa união.
 
-> Por que três? Léxico e semântico erram em lugares diferentes (MIRACL: BM25 39.3, denso 41.5, **híbrido 57.8** nDCG@10). O estrutural pega o que os dois deixam passar.
+> Por que três sinais? Léxico e semântico erram em lugares diferentes; MaxSim
+> estrutural refina a ordem dentro do pool que eles geraram.
 
 ### 2. A fusão quântica (o novo cálculo)
 
@@ -98,11 +102,15 @@ partículas; se ele for **antissimétrico** (determinante de Slater):
 Dois documentos idênticos são duas partículas no mesmo estado → o determinante
 zera → **exclusão de Pauli**. Redundância é proibida por construção, não por
 heurística. Formalmente é um *Determinantal Point Process*, resolvido pelo
-guloso com Cholesky incremental em O(k²N) (Chen et al., NeurIPS 2018).
+guloso com Cholesky incremental (Chen et al., NeurIPS 2018). Ele aproxima o
+objetivo log-determinante; não é MAP global exato, e o custo também inclui as
+similaridades vetoriais.
 
-**Medido:** cobertura de fatos distintos no top-k vai de **46.7% → 100%**, sem
-perder o rank-1 (100% relevante) e sem regressão onde não há redundância.
-Ligado por padrão (`diversity = 0.35`); `0` reproduz o ranking puro.
+**No harness sintético de redundância:** cobertura de fatos distintos no top-k
+vai de **46.7% → 100%**, sem perder o rank-1 nesse corpus. Isso não é evidência
+de ganho geral de retrieval nem substitui avaliação em dataset público.
+No pipeline legado, era ligado por padrão (`diversity = 0.35`) e `0` reproduz
+o ranking puro. A Retrieval V2 começa com `diversity=none`.
 Detalhes em [BENCHMARKS.md](BENCHMARKS.md).
 
 > Resumo da física: **bósons decidem a relevância, férmions decidem o conjunto.**
@@ -121,14 +129,17 @@ O truque que dispensa banco vetorial. Cada texto vira um **holograma** feito só
 
 Resultado: **busca vetorial em Postgres puro**, sem `pgvector`, sem extensão nenhuma.
 
-### 4. Um índice, TRÊS linguagens
+### 4. Um índice Hash, TRÊS linguagens
 
 Python (`rag3d/`), JavaScript (`rag3d-js/`) e **Java** (`rag3d-java/`) produzem
 **hologramas idênticos bit a bit** — mesmo PRNG (splitmix64), mesmo hash
 (CRC-32), mesmos hiperplanos (`portable.py` / `portable.js` / `Portable.java`).
 
-Um documento ingerido em Python é achado por uma consulta em JS **ou em Java**,
-no mesmo banco, sem reindexar nada:
+Essa paridade vale para o encoder Hash/holográfico. JavaScript e Java não
+geram embeddings BGE-M3 nem consultam as tabelas `rag3d_v2_*` de pgvector.
+
+No modo holográfico legado, um documento Hash ingerido em Python é achado por
+uma consulta em JS **ou em Java**, no mesmo banco, sem reindexar nada:
 
 ```
 Python ─┐
@@ -136,11 +147,18 @@ JS ─────┼──► mesmo Postgres ──► assinatura BIT(1024) id�
 Java ───┘
 ```
 
-**Verificado** (`tests/xlang_ingest.py` + `XlangCheck` + `xlang_parity.mjs`):
-Python ingere 6 documentos em PT/EN/中文/francês → Java acha **6/6** e JS acha
-**6/6**, com assinatura recomputada batendo **0/1024** bits. Isso significa que
-o time de dados pode indexar em Python e a aplicação corporativa consultar em
-Java — o mesmo índice, sem ETL entre eles.
+O contrato portátil Hash é verificado por `ParityCheck` e pelos testes Node:
+assinatura, bandas, eco, sparse e constantes coincidem entre Python, JS e Java
+nos vetores de teste. Os scripts `tests/xlang_ingest.py`, `XlangCheck` e
+`xlang_parity.mjs` exercitam o índice PostgreSQL compartilhado quando o driver
+JDBC e um banco de teste dedicado estão disponíveis; BGE-M3/pgvector não têm
+essa paridade cross-language.
+
+Um índice `postgres-holo` certificado pela Retrieval V2 inclui parâmetros de
+pipeline/chunking que os ports Node e Java ainda não representam. Por isso eles
+falham fechado ao encontrar esse fingerprint. Para tráfego trilíngue, mantenha
+um índice Hash legado separado; para voltar de um índice V2, exporte/reingira os
+documentos nesse índice em vez de editar metadados de fingerprint.
 
 ### 5. Defesas para documentos normativos
 
@@ -160,24 +178,29 @@ Camadas (MemGPT + agentes de Stanford): resumo rolante + turnos episódicos + sc
 ## 🗺️ Arquitetura
 
 ```
-                          ┌──────────── INGESTÃO ────────────┐
-   texto  ──normalize──►  chunk adaptativo  ──►  ENCODER  ──►  3 formas
-                                                (BGE-M3 / hash)     │
-                                                                    ▼
-             ┌───────────────── HOLOGRAMA TEXTUAL ─────────────────┐
-             │  BIT(1024) · facetas INT[] · eco BYTEA · constelação │  ──► Postgres
-             └──────────────────────────────────────────────────────┘      (sem pgvector)
-                                                                    ▲
-                          ┌──────────── CONSULTA ────────────┐      │
-  pergunta ─(expansão)─►  ENCODER  ─►  ┌── eixo semântico ──┐        │
-                                       ├── eixo léxico  ─────┤─► FUSÃO QUÂNTICA ─► costura
-                                       └── eixo estrutural ──┘         │              │
-                                                                       ▼              ▼
-                                       3 leitores (1 por eixo)  ──►  LEITORA FINAL (qualquer IA)
-                                                                       │
-                                                                       ▼
-                                                                   resposta + fontes
+INGESTÃO
+texto ─► normalize/chunk ─► encoder ─► SQLite | postgres-holo | pgvector
+
+RETRIEVAL V2
+pergunta ─► normalize/expand/encode ─┬─► dense retriever ─┐
+                                     └─► sparse retriever ─┴─► união limitada
+                                                                  │
+                                                                  ▼
+                                                           RRF (padrão)
+                                                                  │
+                                                                  ▼
+                                                   MaxSim estrutural (rerank)
+                                                                  │
+                                                                  ▼
+                                         reranker opcional ─► none/MMR/DPP
+                                                                  │
+                                                                  ▼
+                                              hydrate/small-to-big/stitch ─► leitor
 ```
+
+O pipeline `legacy` continua disponível e preserva a fusão quântica e as três
+visões históricas. Na V2, o estrutural aparece somente depois da fusão porque
+não é um recuperador global.
 
 ---
 
@@ -207,7 +230,7 @@ Arraste um PDF/TXT, pergunte — a resposta vem **em streaming**, formatada em m
 ### Opção B — Biblioteca Python 🐍
 
 ```bash
-pip install -e .            # + "pip install .[postgres]" e ".[bge]" se quiser
+pip install -e .            # extras: .[postgres], .[pgvector], .[bge], .[reranker]
 ```
 
 ```python
@@ -306,13 +329,18 @@ curl 'localhost:8080/rag3d/search?q=prazo&k=8'
 > O Spring Boot é **opcional** (`<optional>true</optional>` no pom): sem ele, o
 > núcleo funciona igual via `Rag3D.connect(...)`.
 
-**Compilar e testar sem Maven** (Java 21+):
+**Compilar e testar o núcleo sem Maven** (Java 17+):
 
 ```bash
 cd rag3d-java
-javac -d target/classes -cp lib/postgresql.jar $(find src/main/java -name '*.java' -not -path '*/spring/*')
-java -cp target/classes:lib/postgresql.jar XlangCheck    # prova a paridade tri-linguagem
+javac -d target/classes \
+  $(find src/main/java -name '*.java' -not -path '*/spring/*') \
+  src/test/java/ParityCheck.java
+java -cp target/classes ParityCheck
 ```
+
+`XlangCheck` exige um PostgreSQL de teste e um driver JDBC fornecido pelo
+operador; o JAR não é versionado neste repositório.
 
 ### CLI (Python e JS)
 
@@ -331,8 +359,16 @@ Aceita `RAG3D_*` (preferido) com fallback para `TRIRAG_*`. Ver [`.env.example`](
 
 | Variável | Efeito |
 |---|---|
-| `RAG3D_PG` | DSN Postgres → backend holográfico. Vazio = SQLite (Python) / JSON (JS) |
-| `RAG3D_ENCODER` | `auto` (padrão), `bge-m3`, `fallback` |
+| `RAG3D_PG` | DSN PostgreSQL; sem backend explícito mantém o holográfico legado |
+| `RAG3D_BACKEND` | `sqlite`, `postgres-holo` ou `pgvector` (Python) |
+| `RAG3D_RETRIEVAL_PIPELINE` | `legacy` (padrão de rollout) ou `v2` |
+| `RAG3D_FUSION` | V2 usa `rrf` por padrão; `quantum` permanece experimental/legado |
+| `RAG3D_STRUCTURAL_RERANK` | habilita/desabilita MaxSim tardio na V2 |
+| `RAG3D_RERANKER` | `none`, `llm` ou `cross-encoder` (`pip install 'rag3d[reranker]'`) |
+| `RAG3D_DIVERSITY_METHOD` | `none`, `mmr` ou `dpp` |
+| `RAG3D_ENCODER` | `auto`, `bge-m3`, `fallback`/`hash` |
+| `RAG3D_ALLOW_ENCODER_FALLBACK` | V2 falha fechado salvo autorização explícita |
+| `RAG3D_PGVECTOR_SEARCH_MODE` | `exact` (seguro), `ann` (fail-closed) ou `auto` |
 | `RAG3D_LLM` / `RAG3D_LLM_MODEL` | provedor e modelo |
 | `OPENAI_BASE_URL` / `OPENAI_API_KEY` | endpoint OpenAI-compatível (DeepSeek, Ollama, vLLM…) |
 
@@ -367,13 +403,15 @@ PYTHONPATH=$PWD python3 tests/test_pg.py         # backend holográfico (Postgre
 python3 tests/bench_fusion.py                    # quântica vs RRF nos seus dados
 # JavaScript
 cd rag3d-js && node --test 'test/*.test.mjs'
-# Java (sem Maven: javac + driver JDBC em rag3d-java/lib)
-cd rag3d-java && javac -d target/classes -cp lib/postgresql.jar $(find src -name '*.java' -not -path '*/spring/*')
-java -cp target/classes:lib/postgresql.jar ParityCheck   # holograma idêntico
-java -cp target/classes:lib/postgresql.jar XlangCheck    # acha o que o Python ingeriu
-# Cross-language (prova Hamming 0/1024 nas três linguagens)
+# Java core (sem Maven e sem driver externo)
+cd rag3d-java && javac -d target/classes $(find src/main/java -name '*.java' -not -path '*/spring/*') src/test/java/ParityCheck.java
+java -cp target/classes ParityCheck
+# Cross-language Python → Node
 python3 tests/xlang_ingest.py && node rag3d-js/test/xlang_parity.mjs
 ```
+
+O teste PostgreSQL com Java (`XlangCheck`) requer um JAR JDBC externo no
+classpath e as mesmas proteções de banco de teste usadas pelos scripts Python.
 
 ---
 
@@ -398,7 +436,7 @@ python3 tests/bench_fusion.py 1800
 | **quântica (λ=1)** | 83.3% | 0.833 |
 | RRF (k=60) | 83.3% | 0.833 |
 
-### Seleção fermiônica — ganho medido (cobertura)
+### Greedy DPP — cobertura no harness sintético
 
 ```bash
 python3 tests/bench_coverage.py 20 8
@@ -411,8 +449,9 @@ python3 tests/bench_coverage.py 20 8
 | RRF puro | 48.3% | 100% |
 | RRF + fermiônica | 100% | 100% |
 
-**+53 pontos** de fatos distintos no contexto, sem perder o topo e sem
-regressão onde não há redundância. É o ganho mais concreto do RAG3D até aqui.
+**+53 pontos** de fatos distintos no corpus sintético desenhado para
+redundância, sem perder o topo observado. Esse resultado não demonstra ganho
+geral de retrieval e não atende sozinho à meta de 20% da Retrieval V2.
 
 Quântica = RRF = CombSUM. `λ=0` (sem interferência) dá o mesmo que `λ=1` — coerente
 com a garantia de que a fusão colapsa no clássico. **Use RRF como padrão de
@@ -422,13 +461,17 @@ produção**; a fusão quântica é uma opção falsificável, não uma alegaç�
 > acha o alvo e nada os separa. Diferenciar de verdade exige encoder semântico
 > real + base pública.
 
-### Ablação em base pública BEIR (BGE-M3, nDCG@10)
+### Diagnóstico exploratório BEIR (BGE-M3, nDCG@10)
 
-Para o teste que a comunidade aceita — encoder real numa base rotulada:
+O script histórico abaixo compara estratégias e valores de λ diretamente no
+split `test`. Ele é útil para inspeção, mas **não é elegível para tuning, claim
+de qualidade ou meta de 20%**. O runner V2 incluído também usa somente o corpus
+sintético congelado e sempre marca claims como `not_evaluated`; esta entrega
+não inclui um adapter de dataset externo elegível a evidência publicável.
 
 ```bash
 # 1. dependências pesadas (BGE-M3 = ~2.3GB; precisa de ~3GB de RAM livre)
-python3 -m venv .venv && .venv/bin/pip install FlagEmbedding
+python3 -m venv .venv && .venv/bin/pip install '.[bge]'
 
 # 2. dataset BEIR (ex.: nfcorpus — 3.6k docs, 323 queries)
 mkdir -p bench_data && cd bench_data
@@ -438,28 +481,40 @@ curl -sLO https://public.ukp.informatik.tu-darmstadt.de/thakur/BEIR/datasets/nfc
 .venv/bin/python tests/beir_ablation.py nfcorpus
 ```
 
-O runner ([`tests/beir_ablation.py`](tests/beir_ablation.py)) ingere o corpus com
-o **BGE-M3**, roda as queries oficiais e reporta nDCG@10/Recall@10 por estratégia,
-na **mesma recuperação** — resposta direta para *"a fusão quântica ajuda ou é só
-RRF com passos extras?"*.
+O diagnóstico ([`tests/beir_ablation.py`](tests/beir_ablation.py)) ingere o
+corpus com **BGE-M3** e reporta nDCG@10/Recall@10 por estratégia na mesma
+recuperação. Como todas as alternativas são observadas no `test`, seus números
+não podem ser usados para escolher a alternativa vencedora.
 
 ---
 
-## 🆚 Por que sem banco vetorial
+<a id="backends-de-armazenamento"></a>
+
+## 🆚 Backends de armazenamento
+
+O backend holográfico sem extensão continua disponível. Retrieval Engine V2
+também oferece pgvector exact/HNSW como extra opcional em tabelas separadas.
+Os dados/colunas `holo_*` permanecem compatíveis, mas os três ports agora
+adicionam e validam FKs nomeadas para impedir documentos/postings órfãos; faça
+o [preflight de rollout](docs/guides/retrieval-v2-rollout.md) antes de atualizar
+um índice legado.
+Veja a [arquitetura V2](docs/architecture/retrieval-engine-v2.md) e o
+[guia de rollout](docs/guides/retrieval-v2-rollout.md).
 
 |  | RAG3D | pgvector | Milvus / Qdrant / Pinecone |
 |---|---|---|---|
 | Extensão / serviço extra | **nenhum** (Postgres puro) | extensão pgvector | serviço/infra dedicada |
 | Busca vetorial | `bit_count` + `INT[]`/`BYTEA` nativos | `<->` operador da extensão | índice ANN próprio |
 | Multilíngue (100+) | ✅ BGE-M3 | depende do encoder | depende do encoder |
-| Mesmo índice em 3 linguagens | ✅ Python · JS · **Java** (bit a bit) | — | — |
+| Mesmo índice em 3 linguagens | ✅ Hash/holográfico legado; fingerprint V2 é Python-only | — | — |
 | Fricção operacional | mínima (qualquer Postgres gerenciado) | média | alta |
 | ANN em escala de milhões | ⚠️ ainda não (scan + facetas) | ✅ HNSW | ✅ |
 
 **Posicionamento honesto:** o forte do RAG3D é **eliminar o banco vetorial** e a
 **portabilidade Python/JS**, não vencer um HNSW em recall a milhões de vetores.
-Para corpora de milhares a dezenas de milhares de chunks (a maioria dos casos de
-doc-QA), o scan holográfico é rápido o bastante (~11 ms/consulta medido).
+O registro histórico observou ~11 ms/consulta em uma execução local, sem p95,
+IC ou controle de carga. Trate-o como diagnóstico antigo, não como sizing de
+produção; use o runner V2 no corpus e hardware de destino.
 
 ---
 
@@ -467,16 +522,17 @@ doc-QA), o scan holográfico é rápido o bastante (~11 ms/consulta medido).
 
 **O que ainda não está provado** (e não escondemos):
 
-- Fusão quântica **> RRF** em benchmark público — o `beir_ablation.py` existe
-  justamente para medir isso; rode e veja.
+- Fusão quântica **> RRF** em benchmark público — ainda não demonstrado; o
+  `beir_ablation.py` é apenas diagnóstico exploratório, não prova comparativa.
 - Curvas recall × latência contra pgvector/FAISS/Qdrant.
 - Avaliação estatística repetida (vários datasets, intervalos de confiança).
 
 **Roadmap:**
 
-- [ ] Índice **ANN** sobre as assinaturas (multi-probe LSH / HNSW) para escalar a milhões.
+- [x] Backend pgvector HNSW opcional na Retrieval V2 (ainda exige tuning por corpus).
 - [ ] Rodar BEIR + MIRACL com BGE-M3 e publicar os números (bons ou ruins).
-- [ ] Reranker cross-encoder nativo (`bge-reranker-v2-m3`).
+- [x] Interface cross-encoder opcional e fail-closed (`rag3d[reranker]`); ganho
+  de qualidade ainda não avaliado.
 - [ ] Extração de fatos ADD/UPDATE/DELETE na memória (padrão Mem0).
 
 ---
@@ -484,8 +540,10 @@ doc-QA), o scan holográfico é rápido o bastante (~11 ms/consulta medido).
 ## 🎯 Honestidade científica
 
 - A **fusão quântica** tem precedente real (van Rijsbergen 2004; Sordoni SIGIR'13; Gkoumas & Song) mas **não há prova publicada de que vença o RRF em benchmark de texto**. Por isso ela é falsificável (`λ=0` = clássico) e comparável (`--rrf`). **Meça nos seus dados.**
-- Os **Hologramas** são LSH (aproximação); o eco int8 re-pontua os candidatos com <1% de erro; o pré-filtro de facetas só liga acima de 20k hologramas.
-- O **encoder embutido** (hash de n-gramas) é léxico-superficial: ótimo para dev/testes e zero-dep. Para busca semântica de verdade, `pip install FlagEmbedding` liga o **BGE-M3** (100+ línguas, MIT).
+- Os **Hologramas** são LSH (aproximação). O eco int8 pode alterar o top-k;
+  portanto não existe garantia universal de erro ou perda de recall abaixo de
+  1% sem medição no corpus de destino.
+- O **encoder embutido** (hash de n-gramas) é léxico-superficial: ótimo para dev/testes e zero-dep. Para busca semântica de verdade, `pip install 'rag3d[bge]'` liga o **BGE-M3** (100+ línguas, MIT).
 - "Todas as línguas" = as ~100 do XLM-R (BGE-M3); fora delas, o fallback cobre qualquer escrita Unicode com qualidade léxica.
 
 ---

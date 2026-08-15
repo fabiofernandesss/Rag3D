@@ -1,8 +1,8 @@
 # Grafo de impacto
 
 Este grafo será atualizado a partir do diff final. Arestas indicam consumidores,
-interfaces afetadas, testes e rollback; tabelas holográficas compartilhadas não
-são alteradas.
+interfaces afetadas, testes e rollback. As colunas/dados holográficos permanecem
+compatíveis, mas três FKs nomeadas são adicionadas e validadas em todos os ports.
 
 ```mermaid
 flowchart TB
@@ -21,7 +21,7 @@ flowchart TB
   ING[rag3d/ingest.py] -->|grava via| BE
   MEM[rag3d/memory.py] -->|grava/lê via| BE
   PGV -->|grava| TBL[rag3d_v2_*]
-  HOLO -->|preserva| HT[holo_*]
+  HOLO -->|adiciona/valida FKs em| HT[holo_*]
   HT -->|é consumido por| JS[rag3d-js]
   HT -->|é consumido por| JAVA[rag3d-java]
 
@@ -43,7 +43,7 @@ flowchart TB
 | Contratos | duck typing implícito | engine, ingest, memory, retriever | abstração excessiva | Protocol estrutural + contract tests | código legacy continua aceito |
 | Configuração | DSN decide backend | CLI e `TriRag` | precedência/fallback | unitários de matriz de ambiente | remover flags e usar legado |
 | SQLite | schema local | API Python | regressão offline | smoke + contract + reopen | `pipeline=legacy` |
-| postgres-holo | `holo_*` compartilhado | Python/Node/Java | regressão cross-language | nenhum DDL destrutivo + parity | `backend=postgres-holo` |
+| postgres-holo | `holo_*` compartilhado | Python/Node/Java | órfãos, lock de migration, regressão cross-language | preflight + FKs aditivas/timeout + parity legacy | `backend=postgres-holo`; FKs permanecem |
 | pgvector | novo namespace | V2 Python | planner/filtro/migration | PG real, exact ground truth, EXPLAIN | parar profile/backend |
 | Pipeline V2 | recuperadores atuais | `search`, reader, memory | perda de recall | recall por estágio + flag | `pipeline=legacy` |
 | Diversidade | DPP legado | top-k final | nDCG/MRR | `none` identidade + ablação | `diversity=none` |

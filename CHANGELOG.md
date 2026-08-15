@@ -5,6 +5,37 @@ que mudou, **por quê** e **como foi verificado**.
 
 ---
 
+## [Unreleased] — Retrieval Engine V2 (opt-in)
+
+- Adiciona contrato tipado/capability-aware para SQLite, PostgreSQL holográfico
+  e pgvector opcional, mantendo dados/colunas `holo_*` e o pipeline legado.
+- Adiciona e valida FKs `holo_*` idempotentes nos ports Python, Node e Java
+  para impedir órfãos; índices legados com órfãos falham fechado no startup e
+  exigem preflight/correção administrativa antes do rollout.
+- Adiciona pipeline V2 com dense+sparse RRF equal-weight, structural como
+  late-interaction reranker, rerankers opcionais e diversidade
+  `none`/MMR/greedy-DPP.
+- Adiciona fingerprint fail-closed, fallback de encoder explícito, transações
+  por documento, limites e diagnósticos seguros por estágio.
+- Adiciona schema/migration `rag3d_v2_*`, busca pgvector exact e HNSW com modo
+  explícito, filtros limitados, plano auditável e profile Docker separado.
+- Adiciona testes pytest/property/contract/integration e runner reproduzível
+  com métricas por consulta e bootstrap pareado. Resultados sintéticos são
+  rotulados como mecanismo/performance local e não como ganho geral.
+- Limita consultas a 64 KiB, documentos a 16 MiB, documentos chunked a 512
+  chunks e lotes de embedding a 32 itens; enriquecimento e encoding terminam
+  antes da transação curta de persistência.
+- O benchmark remoto exige autorização dupla, nome de banco com token
+  `test`/`bench`, relações vazias e pós-condição de limpeza antes de publicar
+  qualquer relatório.
+- Corrige o subset BEIR histórico para seleção por hash independente de qrels e
+  corrige métricas com IDs duplicados.
+
+Rollout: `RAG3D_RETRIEVAL_PIPELINE=v2`. Rollback composto:
+`RAG3D_RETRIEVAL_PIPELINE=legacy` e backend `sqlite` ou `postgres-holo`.
+
+---
+
 ## [0.2.0] — Java, Spring Boot e seleção fermiônica
 
 ### ☕ Java + Spring Boot (novo)
@@ -18,7 +49,7 @@ Python/JS.
   - `core/TextProc.java` — normalização, sentenças e n-gramas por **code point**
   - `core/Encoders.java` — encoder por hashing (as três formas)
   - `core/Holo.java` — assinatura `BIT(1024)`, facetas, eco int8, constelação
-  - `core/Fusion.java` — fusão quântica, RRF e **seleção fermiônica (MAP-DPP)**
+  - `core/Fusion.java` — fusão quântica, RRF e diversidade **greedy-DPP**
   - `core/PgHoloStore.java` — Postgres puro via JDBC (mesmo esquema)
   - `Rag3D.java` — fachada (`connect` · `ingest` · `search`)
 - `spring/Rag3DAutoConfiguration.java` — bean `Rag3D` injetável via
@@ -35,7 +66,7 @@ Python/JS.
   mesmo Postgres, sem reindexar.
 - Núcleo compila **sem** Spring no classpath (dependência opcional de verdade).
 
-### ⚛️ Seleção fermiônica (MAP-DPP)
+### ⚛️ Diversidade greedy-DPP
 
 A fusão quântica é **bosônica** — decide *quais* documentos são relevantes.
 Faltava decidir *qual conjunto* devolver: o top-k enchia de quase-duplicatas e
@@ -44,7 +75,8 @@ os demais fatos ficavam fora do contexto.
 Um conjunto de k documentos antissimetrizado (determinante de Slater) tem
 amplitude `det(Gram) = Vol²`. Dois documentos idênticos = duas partículas no
 mesmo estado → determinante zera → **exclusão de Pauli**. É um *Determinantal
-Point Process*; guloso com Cholesky incremental em O(k²N) (Chen et al., 2018).
+Point Process*; o método greedy com Cholesky incremental aproxima o objetivo e
+não é MAP global exato. O custo real também inclui similaridades vetoriais.
 
 | | cobertura@6 | rank-1 útil |
 |---|:--:|:--:|
@@ -52,21 +84,24 @@ Point Process*; guloso com Cholesky incremental em O(k²N) (Chen et al., 2018).
 | **fermiônica 0.35 (padrão)** | **100%** | 100% |
 | RRF puro → RRF + fermiônica | 48.3% → **100%** | 100% |
 
-**+53 pontos** de fatos distintos no contexto, sem perder o topo e **sem
-regressão** onde não há redundância. Ligada por padrão (`diversity = 0.35`);
-`0` reproduz o comportamento anterior. Paridade Python/JS/Java verificada em 5
-níveis de diversidade.
+**+53 pontos** de fatos distintos no corpus sintético de redundância, sem
+perder o topo observado nessa execução. Isso não prova ausência de regressão
+em outros corpora. No pipeline legado dessa versão, `diversity = 0.35` era o
+padrão e `0` reproduzia o ranking anterior; a V2 usa `none` como rollout seguro.
 
 ### 🧪 Avaliação honesta
 
 - `tests/bench_coverage.py` — benchmark de cobertura (redundância)
-- `tests/beir_ablation.py` — ablação em base pública **BEIR com BGE-M3**
-  (nDCG@10 e Recall@10; eixos isolados · CombSUM · quântica λ=0/0.5/1 · RRF)
+- `tests/beir_ablation.py` — diagnóstico exploratório em **BEIR com BGE-M3**
+  (nDCG@10 e Recall@10; eixos isolados · CombSUM · quântica λ=0/0.5/1 · RRF).
+  Como compara variantes no próprio split de teste, não é elegível para tuning,
+  seleção de modelo ou claim.
 - `BENCHMARKS.md` — registra que, no harness sintético, **a fusão quântica
   empata com o RRF**; não há evidência de superioridade. Documentado de
   propósito.
 - **Pesos por coerência** (pureza Tr(ρ²) por eixo): implementado e **desligado
-  por padrão** — Tr(ρ²) diagonal *é* a entropia de Rényi-2, e a literatura de
+  por padrão** — `H₂ = -log Tr(ρ²)`, portanto pureza e entropia não são a mesma
+  quantidade; a literatura de
   QPP mostra ~0.09 de correlação para prever qual canal está certo.
 
 ### 🔧 Correções e robustez
@@ -126,4 +161,5 @@ Otimizações medidas (todas preservando a paridade bit a bit):
 | query @1500 docs (JS) | 10.7 ms | 4.0 ms |
 | query @1500 docs (Python) | 12.9 ms | 7.5 ms |
 
-Doc de 200 páginas: armazenamento **0.7 s** (202 chunks), consulta **11 ms**.
+Registro histórico de execução única: doc de 200 páginas em **0,7 s** (202
+chunks) e consulta em **11 ms**; sem p95/IC, não é claim de performance global.
