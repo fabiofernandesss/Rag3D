@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "rag3d"
 version = "0.1.0"
-description = "RAG3D — RAG tridimensional: 3 eixos de busca, fusão por interferência quântica, Hologramas Textuais (vetores em Postgres puro, sem pgvector), memória de conversa infinita, qualquer LLM. Índice compatível bit a bit com a versão JavaScript."
+description = "RAG3D — retrieval tridimensional com SQLite, PostgreSQL holográfico legado e pgvector opcional. Índices Hash legados permanecem portáveis entre Python, JavaScript e Java."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
@@ -15,8 +15,29 @@ keywords = ["rag", "rag3d", "retrieval", "postgres", "no-pgvector", "quantum-fus
 dependencies = ["numpy>=1.24"]
 
 [project.optional-dependencies]
-bge = ["FlagEmbedding>=1.2"]
+bge = [
+    "FlagEmbedding>=1.2,<2",
+    "huggingface_hub>=0.34.1,<1; python_version<'3.10'",
+    "huggingface_hub>=1.24,<2; python_version>='3.10'",
+]
 postgres = ["psycopg[binary]>=3.1"]
+pgvector = [
+    "psycopg[binary]>=3.1,<4",
+    "pgvector>=0.4.2,<0.5; python_version<'3.10'",
+    "pgvector>=0.5,<0.6; python_version>='3.10'",
+]
+reranker = [
+    "sentence-transformers>=3.4,<4; python_version<'3.10'",
+    "sentence-transformers==5.6.0; python_version>='3.10'",
+]
+test = [
+    "pytest>=8,<10",
+    "pytest-cov>=5,<8",
+    "hypothesis>=6.100,<7",
+    "psycopg[binary]>=3.1,<4",
+    "pgvector>=0.4.2,<0.5; python_version<'3.10'",
+    "pgvector>=0.5,<0.6; python_version>='3.10'",
+]
 
 [project.urls]
 Homepage = "https://github.com/fabiofernandesss/Rag3D"
