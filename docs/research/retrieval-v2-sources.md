@@ -71,7 +71,7 @@ Consulta realizada em 2026-08-13. Resultados de outros sistemas são tratados co
 ## Sentence Transformers CrossEncoder
 
 - **Título/projeto:** Sentence Transformers, documentação oficial de CrossEncoder e pacote oficial.
-- **Versão/data:** 5.7.0 para Python >=3.10, consultada em 2026-08-14; a linha Python 3.9 permanece isolada no extra compatível 3.4.x.
+- **Versão/data:** 5.6.0 para Python >=3.10, confirmada no PyPI em 2026-08-14; a linha Python 3.9 permanece isolada no extra compatível 3.4.x.
 - **Fonte:** https://www.sbert.net/docs/cross_encoder/usage/usage.html e https://pypi.org/project/sentence-transformers/
 - **Problema:** reranking supervisionado de pares consulta-documento após geração de candidatos.
 - **Regra extraída:** carregar como extra opcional, limitar texto/pool, preservar a ordem em indisponibilidade ou erro e nunca supor que uma saída válida melhora qualidade.

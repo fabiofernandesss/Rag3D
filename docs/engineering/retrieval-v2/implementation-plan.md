@@ -7,7 +7,8 @@ Este plano transforma o grafo de requisitos em unidades isoladas de escrita. Cad
 - `legacy` preserva API, quantum, SQLite, PostgreSQL holográfico e campos públicos.
 - `v2` usa RRF equal-weight dense+sparse por default; structural é reranker tardio.
 - pgvector é extra/profile opt-in; nenhum import PostgreSQL no caminho SQLite.
-- tabelas `holo_*`, seeds/bytes Hash e ports Node/Java não mudam sem teste cross-language.
+- dados/colunas `holo_*` e seeds/bytes Hash permanecem compatíveis; FKs
+  idempotentes são adicionadas/validadas nos três ports com preflight de órfãos.
 - top-k/channel-k/pools são positivos e limitados; scores são finitos; empates usam id.
 - falhas de reranker preservam a ordem; `diversity=none/0` é identidade.
 - fingerprints incompatíveis falham explicitamente; fallback de encoder na V2 exige autorização.
@@ -70,4 +71,5 @@ export RAG3D_BACKEND=sqlite          # ou postgres-holo
 export RAG3D_FUSION=quantum
 ```
 
-As migrations pgvector são aditivas e separadas; rollback de tráfego não exige apagar dados nem alterar `holo_*`.
+As migrations pgvector são aditivas e separadas. As FKs holográficas também
+são aditivas e permanecem após rollback; rollback de tráfego não apaga dados.

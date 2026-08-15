@@ -51,7 +51,7 @@ flowchart TB
   P -->|implementado por| PV[PostgreSQL + pgvector]
   SQ -->|mantém compatibilidade com| L[pipeline legacy]
   PH -->|mantém compatibilidade com| L
-  PH -->|mantém compatibilidade com| X[Node e Java / holo_*]
+  PH -->|mantém compatibilidade legacy Hash com| X[Node e Java / holo_*]
   PV -->|grava| NS[rag3d_v2_*]
   PV -->|mede ground truth com| EX[exact scan]
   PV -->|pode usar| ANN[HNSW]
