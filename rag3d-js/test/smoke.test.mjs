@@ -3,7 +3,11 @@ import { test } from "node:test";
 import assert from "node:assert";
 import { rmSync } from "node:fs";
 import { TriRag, NoLLM } from "../src/engine.js";
-import { fuse, fermionicSelect, coherence } from "../src/fusion.js";
+import { Ingestor } from "../src/ingest.js";
+import { HashEncoder } from "../src/encoders.js";
+import { MemStore } from "../src/memstore.js";
+import { defaultConfig } from "../src/config.js";
+import { fuse, rrfFuse, fermionicSelect, coherence } from "../src/fusion.js";
 import { normalize, wordTokens, splitSentences, estimateTokens } from "../src/textproc.js";
 
 function tmp() { return "/tmp/trirag_js_" + Math.random().toString(36).slice(2); }
@@ -22,6 +26,80 @@ test("textproc agnóstico de língua", () => {
   assert.equal(normalize("  a   b  "), "a b");
 });
 
+test("consulta pública respeita limite UTF-8", async () => {
+  const rag = await mk();
+  try {
+    await assert.rejects(
+      rag.search("😀".repeat(16385)),
+      /query.*65536.*UTF-8 bytes/i,
+    );
+  } finally {
+    await rag.close();
+  }
+});
+
+test("ask, chat e chatStream validam a consulta antes de memória ou LLM", async () => {
+  const rag = await mk({ smallCorpusTokens: 1_000_000 });
+  let contextCalls = 0;
+  let readerCalls = 0;
+  rag.memory.buildContext = async () => {
+    contextCalls += 1;
+    return { mode: "corpus_integral", blocks: [], tokens: 0 };
+  };
+  rag.reader.read = async () => {
+    readerCalls += 1;
+    return { answer: "unexpected" };
+  };
+  rag.reader.readStream = async () => {
+    readerCalls += 1;
+    return { answer: "unexpected" };
+  };
+  const oversized = "x".repeat(65_537);
+  try {
+    await assert.rejects(rag.ask(oversized), /query.*65536.*UTF-8 bytes/i);
+    await assert.rejects(rag.chat(oversized), /query.*65536.*UTF-8 bytes/i);
+    await assert.rejects(rag.chatStream(oversized, () => {}), /query.*65536.*UTF-8 bytes/i);
+    assert.equal(contextCalls, 0, "invalid input must not reach memory");
+    assert.equal(readerCalls, 0, "invalid input must not reach the reader/LLM");
+  } finally {
+    await rag.close();
+  }
+});
+
+test("stats mascara DSN PostgreSQL", async () => {
+  const rag = await mk();
+  const secret = "postgresql://admin:super-secret@db.internal/production";
+  rag.cfg.pgDsn = secret;
+  try {
+    const stats = await rag.stats();
+    assert.equal(stats.dados, "postgresql (redacted)");
+    assert.ok(!JSON.stringify(stats).includes(secret));
+    assert.ok(!JSON.stringify(stats).includes("super-secret"));
+  } finally {
+    await rag.close();
+  }
+});
+
+test("expansão LLM excessiva cai para a consulta original antes de split", async () => {
+  const rag = await mk({ expandQuery: true, expandQueryMax: 3 });
+  const batches = [];
+  const originalEncode = rag.encoder.encode.bind(rag.encoder);
+  rag.encoder.encode = (texts, isQuery = false) => {
+    batches.push([...texts]);
+    return originalEncode(texts, isQuery);
+  };
+  rag.retriever.llm = {
+    available: () => true,
+    complete: async () => "x".repeat(65_537),
+  };
+  try {
+    await rag.search("consulta");
+    assert.deepEqual(batches, [["consulta"]]);
+  } finally {
+    await rag.close();
+  }
+});
+
 test("ingestão tri-eixo + busca multilíngue", async () => {
   const rag = await mk();
   await rag.ingest("O contrato de aluguel vence em 15 de março de 2027.", "x", "contrato");
@@ -36,6 +114,41 @@ test("ingestão tri-eixo + busca multilíngue", async () => {
   const r3 = await rag.search("会议在哪里举行");
   assert.ok(r3.fused[0].text.includes("北京"));
   await rag.close();
+});
+
+test("rollback de ingestão MemStore remove documento e chunks parciais", async () => {
+  class FailingMemStore extends MemStore {
+    constructor() { super(null); this.chunkWrites = 0; }
+    async addChunk(...args) {
+      this.chunkWrites += 1;
+      if (this.chunkWrites === 2) throw new Error("injected chunk failure");
+      return super.addChunk(...args);
+    }
+  }
+
+  const store = new FailingMemStore();
+  const cfg = defaultConfig({
+    denseDim: 8,
+    colbertDim: 4,
+    maxColbertTokens: 8,
+    tinyDocTokens: 1,
+    chunkTokens: 4,
+    chunkOverlap: 0,
+    parentTokens: 8,
+    contextualEnrich: false,
+  });
+  const ingestor = new Ingestor(store, new HashEncoder(cfg), cfg, new NoLLM());
+
+  await assert.rejects(
+    ingestor.ingestText(
+      "Primeira sentença curta. Segunda sentença curta. Terceira sentença curta.",
+    ),
+    /injected chunk failure/,
+  );
+
+  assert.equal(store.docs.length, 0);
+  assert.equal(store.grams.length, 0);
+  assert.equal(store.seq, 0);
 });
 
 test("chunking adaptativo pequeno vs grande", async () => {
@@ -61,6 +174,24 @@ test("matemática da fusão quântica", () => {
   for (const h of h0) assert.ok(Math.abs(h.score - h.classical) < 1e-9, "λ=0 = clássico");
   const solo = hits.filter((h) => h.channels.length === 1);
   for (const h of solo) assert.ok(Math.abs(h.interference) < 1e-9, "solo sem interferência");
+
+  const nearTie = fuse({ a: [[2, 1.0], [1, 1.0 - 5e-13]] }, [1], 2, "quantum", 1.0);
+  assert.deepEqual(nearTie.map((h) => h.chunkId), [1, 2], "near-flat usa desempate histórico por id");
+
+  const extreme = fuse({ a: [[1, 1e308], [2, -1e308]] }, [1], 2, "quantum", 1.0);
+  assert.ok(extreme.every((h) => Number.isFinite(h.score)), "extremos finitos permanecem finitos");
+});
+
+test("RRF conta ID duplicado apenas no primeiro rank do canal", () => {
+  const hits = rrfFuse(
+    { a: [[1, 0.9], [1, 0.8], [2, 0.7]], b: [[2, 0.9]] },
+    { a: 1, b: 1 },
+    2,
+    60,
+  );
+
+  assert.deepEqual(hits.map((hit) => hit.chunkId), [2, 1]);
+  assert.equal(hits.find((hit) => hit.chunkId === 1).channels.length, 1);
 });
 
 test("memória episódica + orçamento", async () => {
@@ -87,7 +218,7 @@ test("persistência JSON entre instâncias", async () => {
   await rag.close();
 });
 
-test("seleção fermiônica (MAP-DPP) evita redundância e mantém o topo", () => {
+test("greedy DPP evita redundância e mantém o topo", () => {
   // 4 clusters de 4 vetores quase idênticos
   const base = [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]];
   const vecs = new Map(); const items = [];

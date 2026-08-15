@@ -2,11 +2,13 @@ package io.rag3d;
 
 import io.rag3d.core.*;
 
+import java.nio.charset.StandardCharsets;
 import java.sql.SQLException;
 import java.util.*;
 
 /**
- * Fachada RAG3D para Java — mesmo índice holográfico de Python e JavaScript.
+ * Fachada RAG3D para Java — índice Hash holográfico legado compatível com
+ * Python e JavaScript. Índices certificados pela Retrieval V2 são Python-only.
  *
  * <pre>{@code
  * try (Rag3D rag = Rag3D.connect("jdbc:postgresql://localhost:5432/rag3d", "postgres", "senha")) {
@@ -17,10 +19,26 @@ import java.util.*;
  * }</pre>
  *
  * <p>A busca projeta a pergunta nos três eixos (semântico, léxico, estrutural),
- * funde por interferência quântica e aplica a seleção fermiônica (MAP-DPP) no
+ * funde por interferência quântica e aplica diversidade greedy-DPP no
  * conjunto final.
  */
 public final class Rag3D implements AutoCloseable {
+
+    public static final int MAX_QUERY_BYTES = 64 * 1024;
+
+    /** Validate public query size before encoder allocation. */
+    public static String validateQuery(String query) {
+        if (query == null) throw new IllegalArgumentException("query must be a string");
+        // String.length() is an O(1) preflight. The remaining UTF-8 allocation
+        // is bounded because Java chars encode to at most three bytes each.
+        if (query.length() > MAX_QUERY_BYTES
+                || query.getBytes(StandardCharsets.UTF_8).length > MAX_QUERY_BYTES) {
+            throw new IllegalArgumentException(
+                "query exceeds maximum of " + MAX_QUERY_BYTES + " UTF-8 bytes"
+            );
+        }
+        return query;
+    }
 
     /** Um resultado hidratado. */
     public record Hit(long id, String text, double score, double interference, List<String> channels) {}
@@ -65,12 +83,36 @@ public final class Rag3D implements AutoCloseable {
             int n = Math.min(60, cp.length);
             title = new String(cp, 0, n).replace('\n', ' ') + (cp.length > 60 ? "…" : "");
         }
-        long docId = store.addDoc(source, title, nTok);
-
         List<String> chunks = (nTok <= tinyDocTokens) ? List.of(text) : chunkText(text);
-        for (String c : chunks) {
-            String ctx = "[" + title + "] " + c;
-            store.addChunk(docId, c, ctx, TextProc.estimateTokens(c), encoder.encode(ctx));
+        List<String> contexts = new ArrayList<>(chunks.size());
+        List<Encoders.TriVec> vectors = new ArrayList<>(chunks.size());
+        for (String chunk : chunks) {
+            String context = "[" + title + "] " + chunk;
+            contexts.add(context);
+            vectors.add(encoder.encode(context));
+        }
+
+        store.beginBatch();
+        try {
+            long docId = store.addDoc(source, title, nTok);
+            for (int index = 0; index < chunks.size(); index++) {
+                String chunk = chunks.get(index);
+                store.addChunk(
+                    docId,
+                    chunk,
+                    contexts.get(index),
+                    TextProc.estimateTokens(chunk),
+                    vectors.get(index)
+                );
+            }
+            store.commitBatch();
+        } catch (SQLException | RuntimeException failure) {
+            try {
+                store.rollbackBatch();
+            } catch (SQLException rollbackFailure) {
+                failure.addSuppressed(rollbackFailure);
+            }
+            throw failure;
         }
         return chunks.size();
     }
@@ -108,6 +150,7 @@ public final class Rag3D implements AutoCloseable {
 
     /** Busca tridimensional: 3 eixos -> fusão quântica -> seleção fermiônica. */
     public Result search(String query, int k) throws SQLException {
+        query = validateQuery(query);
         int want = k > 0 ? k : topK;
         Encoders.TriVec q = encoder.encode(TextProc.normalize(query));
 

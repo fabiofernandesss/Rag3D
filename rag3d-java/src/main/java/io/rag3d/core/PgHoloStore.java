@@ -5,21 +5,26 @@ import java.util.*;
 
 /**
  * Backend Postgres PURO (JDBC) — sem pgvector. Espelha rag3d/pgstore.py e
- * rag3d-js/src/pgstore.js e usa o MESMO esquema, então lê e escreve os
- * hologramas das outras linguagens.
+ * rag3d-js/src/pgstore.js e usa o mesmo esquema holográfico legado, então lê e
+ * escreve índices Hash que ainda não foram certificados pela Retrieval V2.
+ * Índices com fingerprint V2 são recusados para evitar corrupção silenciosa.
  *
  * <p>Só tipos nativos: BIT(1024) para a assinatura (distância de Hamming via
  * bit_count), INT[] para as facetas, BYTEA para eco e constelação.
  */
 public final class PgHoloStore implements AutoCloseable {
 
+    static final long FINGERPRINT_LOCK_ID = 0x5241473344465032L;
+    static final int FINGERPRINT_LOCK_TIMEOUT_MILLIS = 5000;
+    static final int SCHEMA_LOCK_TIMEOUT_MILLIS = 5000;
+    static final int SCHEMA_STATEMENT_TIMEOUT_MILLIS = 30000;
     private static final String KINDS = "('chunk','turn','summary')";
     private static final String COLS =
             "id,doc_id,parent_id,kind,pos,text,ctx,n_tokens,created,importance,turn_no,accessed_turn";
 
     private final Connection db;
     private final Holo holo;
-    private Integer nCache = null;
+    private boolean inBatch;
 
     public int bandPrefilterThreshold = 20000;
     public int prefetchFactor = 4;
@@ -27,10 +32,70 @@ public final class PgHoloStore implements AutoCloseable {
 
     public PgHoloStore(String jdbcUrl, String user, String password, int denseDim, int colbertDim)
             throws SQLException {
-        this.db = DriverManager.getConnection(jdbcUrl, user, password);
-        this.db.setAutoCommit(true);
-        this.holo = new Holo(denseDim, colbertDim);
-        ensureSchema();
+        this.holo = createHolo(denseDim, colbertDim);
+        this.db = openConnection(jdbcUrl, user, password);
+        this.inBatch = false;
+        try {
+            ensureSchema();
+            ensureEncoderFingerprint("hash:" + denseDim + ":" + colbertDim);
+        } catch (SQLException | RuntimeException exc) {
+            try {
+                this.db.close();
+            } catch (SQLException closeError) {
+                exc.addSuppressed(closeError);
+            }
+            throw new SQLException("postgres-holo initialization failed");
+        }
+    }
+
+    private static Holo createHolo(int denseDim, int colbertDim) throws SQLException {
+        try {
+            return new Holo(denseDim, colbertDim);
+        } catch (RuntimeException failure) {
+            throw new SQLException("postgres-holo initialization failed");
+        }
+    }
+
+    private static Connection openConnection(String url, String user, String password)
+            throws SQLException {
+        Connection connection = null;
+        try {
+            connection = DriverManager.getConnection(url, user, password);
+            connection.setAutoCommit(true);
+            return connection;
+        } catch (SQLException | RuntimeException failure) {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException ignored) {
+                    // Preserve the fixed, secret-safe initialization failure.
+                }
+            }
+            throw new SQLException("postgres-holo initialization failed");
+        }
+    }
+
+    public void beginBatch() throws SQLException {
+        if (inBatch) throw new SQLException("transaction already active");
+        db.setAutoCommit(false);
+        inBatch = true;
+    }
+
+    public void commitBatch() throws SQLException {
+        if (!inBatch) throw new SQLException("no active transaction");
+        db.commit();
+        db.setAutoCommit(true);
+        inBatch = false;
+    }
+
+    public void rollbackBatch() throws SQLException {
+        if (!inBatch) return;
+        try {
+            db.rollback();
+        } finally {
+            db.setAutoCommit(true);
+            inBatch = false;
+        }
     }
 
     private void ensureSchema() throws SQLException {
@@ -40,7 +105,11 @@ public final class PgHoloStore implements AutoCloseable {
               id BIGSERIAL PRIMARY KEY, source TEXT, title TEXT,
               created DOUBLE PRECISION, n_tokens INT, meta TEXT);
             CREATE TABLE IF NOT EXISTS holo_grams(
-              id BIGSERIAL PRIMARY KEY, doc_id BIGINT, parent_id BIGINT,
+              id BIGSERIAL PRIMARY KEY,
+              doc_id BIGINT CONSTRAINT holo_grams_doc_fk
+                REFERENCES holo_docs(id) ON DELETE CASCADE,
+              parent_id BIGINT CONSTRAINT holo_grams_parent_fk
+                REFERENCES holo_grams(id) ON DELETE SET NULL,
               kind TEXT NOT NULL DEFAULT 'chunk',
               pos INT, text TEXT NOT NULL, ctx TEXT,
               n_tokens INT, created DOUBLE PRECISION,
@@ -48,13 +117,196 @@ public final class PgHoloStore implements AutoCloseable {
               sig BIT(1024), bands INT[], echo BYTEA,
               constellation BYTEA, n_tok INT);
             CREATE INDEX IF NOT EXISTS idx_grams_kind ON holo_grams(kind);
+            CREATE INDEX IF NOT EXISTS idx_grams_doc ON holo_grams(doc_id);
             CREATE INDEX IF NOT EXISTS idx_grams_bands ON holo_grams USING GIN(bands);
             CREATE TABLE IF NOT EXISTS holo_spectrum(
-              term BIGINT NOT NULL, gram_id BIGINT NOT NULL, weight REAL NOT NULL);
+              term BIGINT NOT NULL,
+              gram_id BIGINT NOT NULL CONSTRAINT holo_spectrum_gram_fk
+                REFERENCES holo_grams(id) ON DELETE CASCADE,
+              weight REAL NOT NULL);
             CREATE INDEX IF NOT EXISTS idx_spectrum_term ON holo_spectrum(term);
             CREATE INDEX IF NOT EXISTS idx_spectrum_gram ON holo_spectrum(gram_id);
+            DO $rag3d$
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conrelid='holo_grams'::regclass AND conname='holo_grams_doc_fk'
+              ) THEN
+                ALTER TABLE holo_grams ADD CONSTRAINT holo_grams_doc_fk
+                  FOREIGN KEY(doc_id) REFERENCES holo_docs(id) ON DELETE CASCADE NOT VALID;
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conrelid='holo_grams'::regclass AND conname='holo_grams_parent_fk'
+              ) THEN
+                ALTER TABLE holo_grams ADD CONSTRAINT holo_grams_parent_fk
+                  FOREIGN KEY(parent_id) REFERENCES holo_grams(id) ON DELETE SET NULL NOT VALID;
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint
+                WHERE conrelid='holo_spectrum'::regclass AND conname='holo_spectrum_gram_fk'
+              ) THEN
+                ALTER TABLE holo_spectrum ADD CONSTRAINT holo_spectrum_gram_fk
+                  FOREIGN KEY(gram_id) REFERENCES holo_grams(id) ON DELETE CASCADE NOT VALID;
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint c
+                WHERE c.conrelid='holo_grams'::regclass
+                  AND c.conname='holo_grams_doc_fk' AND c.contype='f'
+                  AND c.confrelid='holo_docs'::regclass AND c.confdeltype='c'
+                  AND c.conkey=ARRAY[(SELECT attnum FROM pg_attribute
+                    WHERE attrelid='holo_grams'::regclass AND attname='doc_id')]
+                  AND c.confkey=ARRAY[(SELECT attnum FROM pg_attribute
+                    WHERE attrelid='holo_docs'::regclass AND attname='id')]
+              ) THEN
+                RAISE EXCEPTION 'incompatible holo_grams_doc_fk constraint';
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint c
+                WHERE c.conrelid='holo_grams'::regclass
+                  AND c.conname='holo_grams_parent_fk' AND c.contype='f'
+                  AND c.confrelid='holo_grams'::regclass AND c.confdeltype='n'
+                  AND c.conkey=ARRAY[(SELECT attnum FROM pg_attribute
+                    WHERE attrelid='holo_grams'::regclass AND attname='parent_id')]
+                  AND c.confkey=ARRAY[(SELECT attnum FROM pg_attribute
+                    WHERE attrelid='holo_grams'::regclass AND attname='id')]
+              ) THEN
+                RAISE EXCEPTION 'incompatible holo_grams_parent_fk constraint';
+              END IF;
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint c
+                WHERE c.conrelid='holo_spectrum'::regclass
+                  AND c.conname='holo_spectrum_gram_fk' AND c.contype='f'
+                  AND c.confrelid='holo_grams'::regclass AND c.confdeltype='c'
+                  AND c.conkey=ARRAY[(SELECT attnum FROM pg_attribute
+                    WHERE attrelid='holo_spectrum'::regclass AND attname='gram_id')]
+                  AND c.confkey=ARRAY[(SELECT attnum FROM pg_attribute
+                    WHERE attrelid='holo_grams'::regclass AND attname='id')]
+              ) THEN
+                RAISE EXCEPTION 'incompatible holo_spectrum_gram_fk constraint';
+              END IF;
+            END
+            $rag3d$;
+            ALTER TABLE holo_grams VALIDATE CONSTRAINT holo_grams_doc_fk;
+            ALTER TABLE holo_grams VALIDATE CONSTRAINT holo_grams_parent_fk;
+            ALTER TABLE holo_spectrum VALIDATE CONSTRAINT holo_spectrum_gram_fk;
             """;
-        try (Statement st = db.createStatement()) { st.execute(ddl); }
+        boolean priorAutoCommit = db.getAutoCommit();
+        if (priorAutoCommit) db.setAutoCommit(false);
+        try {
+            try (PreparedStatement timeout = db.prepareStatement(
+                    "SELECT set_config('lock_timeout', ?, true), "
+                    + "set_config('statement_timeout', ?, true)")) {
+                timeout.setString(1, SCHEMA_LOCK_TIMEOUT_MILLIS + "ms");
+                timeout.setString(2, SCHEMA_STATEMENT_TIMEOUT_MILLIS + "ms");
+                timeout.execute();
+            }
+            try (Statement st = db.createStatement()) { st.execute(ddl); }
+            db.commit();
+        } catch (SQLException | RuntimeException failure) {
+            try {
+                db.rollback();
+            } catch (SQLException rollbackError) {
+                failure.addSuppressed(rollbackError);
+            }
+            throw new SQLException("postgres-holo schema initialization failed");
+        } finally {
+            if (priorAutoCommit) db.setAutoCommit(true);
+        }
+    }
+
+    static void validateEncoderFingerprint(String stored, String expected) throws SQLException {
+        if (stored == null || !stored.equals(expected)) {
+            throw new SQLException("incompatible encoder fingerprint");
+        }
+    }
+
+    static void validateNoRetrievalV2Fingerprint(boolean present) throws SQLException {
+        if (present) {
+            throw new SQLException(
+                "retrieval V2 holographic index requires the Python adapter"
+            );
+        }
+    }
+
+    private static void acquireEncoderFingerprintLock(Connection connection) throws SQLException {
+        try {
+            try (Statement timeout = connection.createStatement()) {
+                timeout.execute(
+                    "SET LOCAL lock_timeout = '" + FINGERPRINT_LOCK_TIMEOUT_MILLIS + "ms'"
+                );
+            }
+            try (PreparedStatement lock = connection.prepareStatement(
+                    "SELECT pg_advisory_xact_lock(?)")) {
+                lock.setLong(1, FINGERPRINT_LOCK_ID);
+                lock.execute();
+            }
+        } catch (SQLException failure) {
+            throw new SQLException("encoder fingerprint lock acquisition failed");
+        }
+    }
+
+    private void ensureEncoderFingerprint(String expected) throws SQLException {
+        boolean priorAutoCommit = db.getAutoCommit();
+        if (priorAutoCommit) db.setAutoCommit(false);
+        try {
+            acquireEncoderFingerprintLock(db);
+
+            try (Statement checkV2 = db.createStatement();
+                 ResultSet rows = checkV2.executeQuery(
+                     "SELECT EXISTS(SELECT 1 FROM holo_meta WHERE key IN "
+                     + "('retrieval_v2_fingerprint','retrieval_v2_fingerprint_sha256'))")) {
+                rows.next();
+                validateNoRetrievalV2Fingerprint(rows.getBoolean(1));
+            }
+
+            String stored = null;
+            try (PreparedStatement select = db.prepareStatement(
+                    "SELECT value FROM holo_meta WHERE key='encoder'")) {
+                try (ResultSet rows = select.executeQuery()) {
+                    if (rows.next()) stored = rows.getString(1);
+                }
+            }
+
+            if (stored == null) {
+                boolean populated;
+                try (Statement count = db.createStatement();
+                     ResultSet rows = count.executeQuery(
+                         "SELECT EXISTS(SELECT 1 FROM holo_grams LIMIT 1)")) {
+                    rows.next();
+                    populated = rows.getBoolean(1);
+                }
+                if (populated) {
+                    throw new SQLException(
+                        "missing encoder fingerprint on populated holographic index"
+                    );
+                }
+                try (PreparedStatement insert = db.prepareStatement(
+                        "INSERT INTO holo_meta(key,value) VALUES('encoder',?) "
+                        + "ON CONFLICT(key) DO NOTHING")) {
+                    insert.setString(1, expected);
+                    insert.executeUpdate();
+                }
+                try (PreparedStatement select = db.prepareStatement(
+                        "SELECT value FROM holo_meta WHERE key='encoder'")) {
+                    try (ResultSet rows = select.executeQuery()) {
+                        if (rows.next()) stored = rows.getString(1);
+                    }
+                }
+            }
+
+            validateEncoderFingerprint(stored, expected);
+            db.commit();
+        } catch (SQLException | RuntimeException exc) {
+            try {
+                db.rollback();
+            } catch (SQLException rollbackError) {
+                exc.addSuppressed(rollbackError);
+            }
+            throw exc;
+        } finally {
+            if (priorAutoCommit) db.setAutoCommit(true);
+        }
     }
 
     public Holo holo() { return holo; }
@@ -106,19 +358,19 @@ public final class PgHoloStore implements AutoCloseable {
             ps.setInt(i++, vec.tokens.size());
             ps.setArray(i++, db.createArrayOf("int8", terms));
             ps.setArray(i++, db.createArrayOf("float4", weights));
-            try (ResultSet rs = ps.executeQuery()) { rs.next(); nCache = null; return rs.getLong(1); }
+            try (ResultSet rs = ps.executeQuery()) { rs.next(); return rs.getLong(1); }
         }
     }
 
     public int nChunks() throws SQLException {
-        if (nCache == null) {
-            try (Statement st = db.createStatement();
-                 ResultSet rs = st.executeQuery(
-                         "SELECT COUNT(*) FROM holo_grams WHERE kind IN " + KINDS)) {
-                rs.next(); nCache = rs.getInt(1);
-            }
+        // Other Python/Node/Java processes may write concurrently; a local
+        // cache would corrupt ANN threshold selection and sparse IDF.
+        try (Statement st = db.createStatement();
+             ResultSet rs = st.executeQuery(
+                     "SELECT COUNT(*) FROM holo_grams WHERE kind IN " + KINDS)) {
+            rs.next();
+            return rs.getInt(1);
         }
-        return nCache;
     }
 
     // ------------------------------------------------- eixo 1: semântico ---
@@ -133,7 +385,7 @@ public final class PgHoloStore implements AutoCloseable {
         if (big && rows.size() < prefetch / 2) rows = scan(bits, sig, prefetch, false);
         if (rows.isEmpty()) return List.of();
 
-        // re-pontuação exata pelo eco int8 (cosseno real, não Hamming)
+        // re-pontuação aproximada pelo eco int8 quantizado (não Hamming)
         List<Fusion.Scored> out = new ArrayList<>(rows.size());
         for (Object[] r : rows) {
             float[] echo = Holo.dequantize((byte[]) r[1]);
@@ -172,25 +424,45 @@ public final class PgHoloStore implements AutoCloseable {
 
     public List<Fusion.Scored> sparseSearch(Map<Long, Float> qsparse, int k) throws SQLException {
         if (qsparse.isEmpty()) return List.of();
-        int nDocs = Math.max(1, nChunks());
-        String sql = "SELECT term, gram_id, weight, COUNT(*) OVER (PARTITION BY term) AS df"
-                + " FROM holo_spectrum WHERE term = ANY(?::bigint[])";
-        Map<Long, Double> scores = new LinkedHashMap<>();
+        Long[] terms = qsparse.keySet().toArray(new Long[0]);
+        Double[] weights = new Double[terms.length];
+        for (int i = 0; i < terms.length; i++) weights[i] = (double) qsparse.get(terms[i]);
+        String sql = """
+            WITH query_terms(term,qweight) AS (
+              SELECT * FROM unnest(?::bigint[],?::double precision[])
+            ), universe AS (
+              SELECT GREATEST(COUNT(*),1)::double precision AS n_docs
+              FROM holo_grams WHERE kind IN ('chunk','turn','summary')
+            ), term_df AS (
+              SELECT p.term, COUNT(DISTINCT p.gram_id)::double precision AS df
+              FROM holo_spectrum p JOIN holo_grams g ON g.id=p.gram_id
+              JOIN query_terms q ON q.term=p.term
+              WHERE g.kind IN ('chunk','turn','summary') GROUP BY p.term
+            ), scored AS (
+              SELECT p.gram_id, SUM(q.qweight::double precision *
+                p.weight::double precision * LN(1.0 +
+                (u.n_docs - d.df + 0.5) / (d.df + 0.5))) AS score
+              FROM holo_spectrum p JOIN holo_grams g ON g.id=p.gram_id
+              JOIN query_terms q ON q.term=p.term
+              JOIN term_df d ON d.term=p.term CROSS JOIN universe u
+              WHERE g.kind IN ('chunk','turn','summary') GROUP BY p.gram_id
+            ) SELECT gram_id,score FROM scored
+            ORDER BY score DESC,gram_id ASC LIMIT ?
+            """;
+        List<Fusion.Scored> out = new ArrayList<>();
         try (PreparedStatement ps = db.prepareStatement(sql)) {
-            ps.setArray(1, db.createArrayOf("int8", qsparse.keySet().toArray(new Long[0])));
+            ps.setArray(1, db.createArrayOf("int8", terms));
+            ps.setArray(2, db.createArrayOf("float8", weights));
+            ps.setInt(3, k);
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
-                    long term = rs.getLong(1), gid = rs.getLong(2);
-                    double dw = rs.getFloat(3), df = rs.getLong(4);
-                    double idf = Math.log(1.0 + (nDocs - df + 0.5) / (df + 0.5));
-                    scores.merge(gid, qsparse.get(term) * dw * idf, Double::sum);
+                    double score = rs.getDouble(2);
+                    if (!Double.isFinite(score)) throw new SQLException("sparse scores must be finite");
+                    out.add(new Fusion.Scored(rs.getLong(1), score));
                 }
             }
         }
-        List<Fusion.Scored> out = new ArrayList<>();
-        scores.forEach((gid, s) -> out.add(new Fusion.Scored(gid, s)));
-        out.sort(Comparator.<Fusion.Scored>comparingDouble(s -> -s.score()).thenComparingLong(Fusion.Scored::id));
-        return out.subList(0, Math.min(k, out.size()));
+        return out;
     }
 
     // ----------------------------------------------- eixo 3: estrutural ----
@@ -237,7 +509,6 @@ public final class PgHoloStore implements AutoCloseable {
         try (Statement st = db.createStatement()) {
             st.execute("TRUNCATE holo_grams, holo_spectrum, holo_docs");
         }
-        nCache = null;
     }
 
     @Override public void close() throws SQLException { db.close(); }

@@ -34,7 +34,7 @@ export function defaultConfig(over = {}) {
     interferenceStrength: 1.0,
     // coerência: peso do eixo modulado pela pureza da sua distribuição (0 = fixo)
     coherenceStrength: 0.0,
-    // seleção fermiônica (MAP-DPP / determinante de Slater): escolhe o CONJUNTO
+    // greedy DPP / determinante de Slater: aproxima um CONJUNTO
     // final sem redundância (exclusão de Pauli). 0 = ranking puro.
     diversity: 0.35,
     diversityPool: 40,

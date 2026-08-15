@@ -86,7 +86,7 @@ export class Holographer {
     return out;
   }
 
-  // vetor normalizado -> int8 (eco para re-pontuação exata) — Int8Array bytes
+  // vetor normalizado -> int8 (eco para re-pontuação aproximada) — Int8Array bytes
   static quantize(vec) {
     const out = new Int8Array(vec.length);
     for (let i = 0; i < vec.length; i++) {
