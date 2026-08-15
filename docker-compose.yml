@@ -16,5 +16,23 @@ services:
       - "5433:5432"
     volumes:
       - rag3d_pg:/var/lib/postgresql/data
+  pgvector:
+    profiles: ["pgvector"]
+    image: pgvector/pgvector:0.8.6-pg16-bookworm
+    container_name: rag3d-pgvector
+    environment:
+      POSTGRES_PASSWORD: ${RAG3D_PGVECTOR_PASSWORD:-}
+      POSTGRES_DB: rag3d
+    ports:
+      - "127.0.0.1:5434:5432"
+    volumes:
+      - rag3d_pgvector:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rag3d"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
 volumes:
   rag3d_pg:
+  rag3d_pgvector:
