@@ -1074,10 +1074,10 @@ class PgVectorStore:
         psycopg, register_vector = _load_optional_dependencies()
         try:
             self.db = psycopg.connect(dsn, autocommit=True)
-        except Exception:
+        except Exception as exc:
             raise PgVectorConnectionError(
                 "could not connect to the PostgreSQL pgvector backend"
-            ) from None
+            ) from exc
         try:
             row = self.db.execute(
                 "SELECT extversion,current_setting('server_version') "
@@ -1165,10 +1165,10 @@ class PgVectorStore:
                         "SELECT set_config('statement_timeout',%s,true)",
                         (str(self.statement_timeout_ms),),
                     )
-                except Exception:
+                except Exception as exc:
                     raise PgVectorError(
                         "could not configure the pgvector migration timeout"
-                    ) from None
+                    ) from exc
                 for statement in _schema_statements(self.dense_dim, self.colbert_dim):
                     cursor.execute(statement)
                 self._verify_schema(cursor)
@@ -1183,10 +1183,10 @@ class PgVectorStore:
                 (str(self.lock_timeout_ms),),
             )
             executor.execute("SELECT pg_advisory_xact_lock(%s)", (lock_key,))
-        except Exception:
+        except Exception as exc:
             raise PgVectorError(
                 f"could not acquire the pgvector {purpose} lock"
-            ) from None
+            ) from exc
 
     def _verify_schema(self, cursor: Any) -> None:
         table_names = [

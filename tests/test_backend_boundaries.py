@@ -20,7 +20,11 @@ from rag3d.pgvector_store import (
     _validate_ann_options,
     _validate_sparse_weights,
 )
-from rag3d.store import TriStore
+from rag3d.store import (
+    TriStore,
+    _SQLITE_HISTORICAL_VARIABLE_LIMIT,
+    _sqlite_variable_limit,
+)
 
 
 class _Rows:
@@ -311,6 +315,47 @@ def test_sqlite_batches_all_id_and_position_apis_under_variable_limit(tmp_path) 
         assert [row["pos"] for row in neighbors] == list(range(25))
     finally:
         store.db.setlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER, previous_limit)
+        store.close()
+
+
+def test_sqlite_variable_limit_falls_back_when_getlimit_is_missing() -> None:
+    class _LegacyConnection:
+        pass
+
+    class _ModernConnection:
+        def getlimit(self, limit: int) -> int:
+            assert limit == sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER
+            return 7
+
+    assert _sqlite_variable_limit(_LegacyConnection()) == (
+        _SQLITE_HISTORICAL_VARIABLE_LIMIT
+    )
+    assert _sqlite_variable_limit(_ModernConnection()) == 7
+
+
+def test_sqlite_batches_fall_back_to_historical_limit_without_getlimit(
+    tmp_path,
+) -> None:
+    store = TriStore(tmp_path / "legacy-sqlite-limit.db")
+
+    class _NoGetlimitConnection:
+        def __init__(self, connection: sqlite3.Connection) -> None:
+            self._connection = connection
+
+        def __getattr__(self, name: str):
+            if name == "getlimit":
+                raise AttributeError(name)
+            return getattr(self._connection, name)
+
+    store.db = _NoGetlimitConnection(store.db)
+    values = list(range(1_050))
+    try:
+        batches = list(store._sqlite_batches(values, reserved_variables=1))
+        assert max(len(batch) for batch in batches) == (
+            _SQLITE_HISTORICAL_VARIABLE_LIMIT - 1
+        )
+        assert [item for batch in batches for item in batch] == values
+    finally:
         store.close()
 
 

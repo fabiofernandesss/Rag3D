@@ -133,14 +133,14 @@ class TriRag:
         if backend == "postgres-holo":
             try:
                 from .pgstore import PgHoloStore
-            except (ImportError, ModuleNotFoundError):
-                raise RuntimeError("postgres-holo backend is unavailable") from None
+            except (ImportError, ModuleNotFoundError) as exc:
+                raise RuntimeError("postgres-holo backend is unavailable") from exc
             store_type = PgHoloStore
         else:
             try:
                 from .pgvector_store import PgVectorStore
-            except (ImportError, ModuleNotFoundError):
-                raise RuntimeError("pgvector backend is unavailable") from None
+            except (ImportError, ModuleNotFoundError) as exc:
+                raise RuntimeError("pgvector backend is unavailable") from exc
             store_type = PgVectorStore
 
         try:
@@ -159,11 +159,11 @@ class TriRag:
             # callers use it to trigger an explicit reindex or rollback.
             raise
         except Exception as exc:
-            # Driver exceptions may include conninfo. Preserve only the safe
-            # implementation type, never the original DSN or exception text.
+            # Keep the public message free of conninfo/DSN, but chain the
+            # original driver error so operators can diagnose the failure.
             raise RuntimeError(
                 f"failed to initialize backend '{backend}' ({type(exc).__name__})"
-            ) from None
+            ) from exc
 
     def _v2_fingerprint(
         self, *, backend_name: Optional[str] = None

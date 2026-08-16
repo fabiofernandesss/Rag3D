@@ -117,7 +117,17 @@ _MAX_DENSE_DIM = DEFAULT_RETRIEVAL_LIMITS.max_dense_dim
 _MAX_STRUCTURAL_DIM = DEFAULT_RETRIEVAL_LIMITS.max_structural_dim
 _MAX_STRUCTURAL_TOKEN_ROWS = DEFAULT_RETRIEVAL_LIMITS.max_structural_tokens
 _MAX_STRUCTURAL_VALUES = DEFAULT_RETRIEVAL_LIMITS.max_structural_values
+# sqlite3.Connection.getlimit() exists only on Python 3.11+. Older runtimes
+# keep the historical SQLite SQLITE_LIMIT_VARIABLE_NUMBER default of 999.
+_SQLITE_HISTORICAL_VARIABLE_LIMIT = 999
 _MAX_MAXSIM_PAIRS = DEFAULT_RETRIEVAL_LIMITS.max_structural_values
+
+
+def _sqlite_variable_limit(connection: sqlite3.Connection) -> int:
+    getter = getattr(connection, "getlimit", None)
+    if getter is None:
+        return _SQLITE_HISTORICAL_VARIABLE_LIMIT
+    return int(getter(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER))
 
 
 def _validate_non_negative_bigint(name: str, value: object) -> int:
@@ -595,9 +605,7 @@ class TriStore:
     def _sqlite_batches(
         self, values: Sequence[int], *, reserved_variables: int = 0
     ) -> Iterator[Sequence[int]]:
-        variable_limit = int(
-            self.db.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER)
-        )
+        variable_limit = _sqlite_variable_limit(self.db)
         batch_size = variable_limit - reserved_variables
         if batch_size < 1:
             raise sqlite3.OperationalError(

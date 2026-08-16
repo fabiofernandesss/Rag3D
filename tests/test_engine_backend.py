@@ -187,6 +187,33 @@ def test_engine_pgvector_import_error_is_clear_and_secret_safe(monkeypatch, tmp_
 
     assert secret_dsn not in str(raised.value)
     assert "super-secret" not in str(raised.value)
+    assert raised.value.__cause__ is not None
+
+
+def test_engine_chains_backend_constructor_cause_without_echoing_dsn(
+    monkeypatch, tmp_path
+):
+    secret = "postgresql://admin:super-secret@example.invalid/prod"
+
+    class FailingStore:
+        def __init__(self, *args, **kwargs):
+            raise RuntimeError("container dns lookup failed")
+
+        def close(self):
+            pass
+
+    _install_fake_store_module(
+        monkeypatch, "rag3d.pgstore", "PgHoloStore", FailingStore
+    )
+
+    with pytest.raises(RuntimeError, match="failed to initialize backend") as raised:
+        TriRag(
+            _cfg(tmp_path, backend="postgres-holo", pg_dsn=secret), llm=NoLLM()
+        )
+
+    assert secret not in str(raised.value)
+    assert "super-secret" not in str(raised.value)
+    assert str(raised.value.__cause__) == "container dns lookup failed"
 
 
 def test_engine_preserves_pgvector_fingerprint_mismatch_type(monkeypatch, tmp_path):

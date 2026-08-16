@@ -660,6 +660,8 @@ def test_postgres_holo_schema_bootstrap_failure_is_fixed_and_secret_safe(
     assert database.closed is True
     assert secret not in str(raised.value)
     assert "super-secret" not in str(raised.value)
+    assert raised.value.__cause__ is not None
+    assert secret in str(raised.value.__cause__)
 
 
 @pytest.mark.parametrize(
@@ -753,6 +755,8 @@ def test_postgres_constructor_masks_connection_error_dsn(monkeypatch):
 
     assert secret not in str(raised.value)
     assert "super-secret" not in str(raised.value)
+    assert isinstance(raised.value.__cause__, RuntimeError)
+    assert secret in str(raised.value.__cause__)
 
 
 @pytest.mark.parametrize(
@@ -845,6 +849,8 @@ def test_postgres_constructor_closes_connection_when_fingerprint_read_fails(
     assert database.closed is True
     assert secret not in str(raised.value)
     assert "super-secret" not in str(raised.value)
+    assert raised.value.__cause__ is not None
+    assert secret in str(raised.value.__cause__)
 
 
 def test_postgres_neighbors_accepts_negative_probe_positions_from_legacy_stitching():

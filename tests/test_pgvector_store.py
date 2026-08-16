@@ -31,6 +31,7 @@ from rag3d.backend import (
     SearchScope,
 )
 from rag3d.pgvector_store import (
+    PgVectorConnectionError,
     PgVectorError,
     PgVectorExtensionError,
     PgVectorHnswError,
@@ -973,6 +974,29 @@ def test_missing_extension_error_is_actionable_and_dsn_safe(monkeypatch) -> None
     assert dsn not in message
     assert "secret-user" not in message
     assert "secret-password" not in message
+
+
+def test_constructor_connection_error_chains_cause_without_dsn(monkeypatch) -> None:
+    dsn = "postgresql://secret-user:secret-password@db.invalid/private"
+
+    class FailingPsycopg:
+        @staticmethod
+        def connect(_dsn, *, autocommit):
+            raise RuntimeError("could not translate host name")
+
+    monkeypatch.setattr(
+        "rag3d.pgvector_store._load_optional_dependencies",
+        lambda: (FailingPsycopg, lambda _connection: None),
+    )
+
+    with pytest.raises(PgVectorConnectionError) as caught:
+        PgVectorStore(dsn, dense_dim=3, colbert_dim=2)
+
+    message = str(caught.value)
+    assert "could not connect" in message
+    assert dsn not in message
+    assert "secret-password" not in message
+    assert str(caught.value.__cause__) == "could not translate host name"
 
 
 def test_constructor_uses_fingerprint_structural_limits_and_bounded_fallback(

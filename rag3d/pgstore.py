@@ -459,10 +459,10 @@ class PgHoloStore:
         )
         try:
             holographer = Holographer(dense_dimension, structural_dimension)
-        except Exception:
+        except Exception as exc:
             raise RuntimeError(
                 "failed to initialize postgres-holo projections"
-            ) from None
+            ) from exc
         import psycopg  # dependência só deste backend
 
         # autocommit=True: leituras não deixam a conexão "idle in transaction"
@@ -474,7 +474,7 @@ class PgHoloStore:
             raise RuntimeError(
                 "failed to connect postgres-holo backend "
                 f"({type(exc).__name__})"
-            ) from None
+            ) from exc
         try:
             schema_lock_timeout_ms = int(self.SCHEMA_LOCK_TIMEOUT_MS)
             schema_statement_timeout_ms = int(
@@ -495,14 +495,14 @@ class PgHoloStore:
                         f"'{schema_statement_timeout_ms}ms'"
                     )
                     cur.execute(SCHEMA)
-        except Exception:
+        except Exception as exc:
             try:
                 self.db.close()
             except Exception:
                 pass
             raise RuntimeError(
                 "failed to initialize postgres-holo schema"
-            ) from None
+            ) from exc
         self.holo = holographer
         self._dense_dim = dense_dimension
         self._colbert_dim = structural_dimension
@@ -514,14 +514,14 @@ class PgHoloStore:
                 "SELECT value FROM holo_meta WHERE key=%s",
                 ("retrieval_v2_fingerprint",),
             ).fetchone()
-        except Exception:
+        except Exception as exc:
             try:
                 self.db.close()
             except Exception:
                 pass
             raise RuntimeError(
                 "failed to initialize postgres-holo backend"
-            ) from None
+            ) from exc
         if stored_fingerprint:
             self._fingerprint_structural_tokens = (
                 _fingerprint_structural_token_limit(stored_fingerprint[0])
@@ -718,10 +718,10 @@ class PgHoloStore:
                 "SELECT pg_advisory_xact_lock(%s)",
                 (self.FINGERPRINT_LOCK_ID,),
             )
-        except Exception:
+        except Exception as exc:
             raise RuntimeError(
                 "postgres-holo fingerprint lock acquisition failed"
-            ) from None
+            ) from exc
 
     # ------------------------------------------------------------ escrita ---
 
