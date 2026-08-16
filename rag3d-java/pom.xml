@@ -10,7 +10,7 @@
   <packaging>jar</packaging>
 
   <name>RAG3D</name>
-  <description>RAG tridimensional: 3 eixos, fusão por interferência quântica, seleção fermiônica (MAP-DPP) e Hologramas Textuais em Postgres puro (sem pgvector). Índice compatível bit a bit com as versões Python e JavaScript.</description>
+  <description>RAG tridimensional com índice Hash holográfico legado compatível com Python e JavaScript.</description>
   <url>https://github.com/fabiofernandesss/Rag3D</url>
 
   <licenses>

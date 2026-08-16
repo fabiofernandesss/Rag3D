@@ -73,7 +73,7 @@ public final class Holo {
         return out;
     }
 
-    /** Vetor normalizado -> int8 (eco para re-pontuação exata). */
+    /** Vetor normalizado -> int8 (eco para re-pontuação aproximada). */
     public static byte[] quantize(float[] vec) {
         byte[] out = new byte[vec.length];
         for (int i = 0; i < vec.length; i++) {

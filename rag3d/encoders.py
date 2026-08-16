@@ -11,12 +11,14 @@ qualidade menor, mas zero dependências e agnóstico de escrita/língua.
 """
 from __future__ import annotations
 
+import hashlib
 import zlib
 from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 import numpy as np
 
+from .backend import DEFAULT_RETRIEVAL_LIMITS
 from .textproc import char_ngrams, word_tokens
 
 
@@ -28,11 +30,41 @@ class TriVec:
     tokens: np.ndarray           # (T, C) float32, linhas L2-normalizadas
 
 
+@dataclass(frozen=True)
+class EncoderIndexSpec:
+    """Immutable identity of every encoder choice that changes stored vectors."""
+
+    model: str
+    revision: str
+    max_structural_tokens: int
+    structural_projection: str
+    query_max_tokens: int
+    passage_max_tokens: int
+    sparse_version: str
+    schema_version: str
+
+
 class BaseEncoder:
     name = "base"
+    index_spec: EncoderIndexSpec
 
     def encode(self, texts: List[str], is_query: bool = False) -> List[TriVec]:
         raise NotImplementedError
+
+
+def _bounded_dimension(name: str, value: int, maximum: int) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{name} must be an integer, not bool")
+    if not 1 <= value <= maximum:
+        raise ValueError(f"{name} must be between 1 and {maximum}")
+
+
+def _validate_structural_shape(colbert_dim: int, max_tokens: int) -> None:
+    if (
+        colbert_dim * max_tokens
+        > DEFAULT_RETRIEVAL_LIMITS.max_structural_values
+    ):
+        raise ValueError("structural tensor exceeds the public value-count bound")
 
 
 # ---------------------------------------------------------------- BGE-M3 ---
@@ -42,15 +74,59 @@ class Bgem3Encoder(BaseEncoder):
 
     name = "bge-m3"
 
-    def __init__(self, colbert_dim: int = 128, max_tokens: int = 256):
-        from FlagEmbedding import BGEM3FlagModel  # import tardio: dependência opcional
+    MODEL = "BAAI/bge-m3"
+    REVISION = "5617a9f61b028005a4858fdac845db406aefb181"
+    QUERY_MAX_TOKENS = 256
+    PASSAGE_MAX_TOKENS = 1024
 
-        self.model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=False)
+    def __init__(self, colbert_dim: int = 128, max_tokens: int = 256):
+        limits = DEFAULT_RETRIEVAL_LIMITS
+        _bounded_dimension(
+            "colbert_dim", colbert_dim, limits.max_structural_dim
+        )
+        _bounded_dimension(
+            "max_tokens", max_tokens, limits.max_structural_tokens
+        )
+        _validate_structural_shape(colbert_dim, max_tokens)
+        from FlagEmbedding import BGEM3FlagModel  # import tardio: dependência opcional
+        from huggingface_hub import snapshot_download
+
+        # FlagEmbedding currently accepts arbitrary kwargs but does not
+        # reliably forward ``revision`` to every tokenizer/model loader. Resolve
+        # the immutable Hugging Face snapshot ourselves and give the encoder a
+        # local path, so the revision recorded in the fingerprint is truthful.
+        try:
+            model_path = snapshot_download(
+                repo_id=self.MODEL,
+                revision=self.REVISION,
+                ignore_patterns=["onnx/*", "imgs/*", "*.md", "*.DS_Store"],
+            )
+            self.model = BGEM3FlagModel(model_path, use_fp16=False)
+        except Exception as exc:
+            raise RuntimeError(
+                "failed to load pinned BGE-M3 snapshot "
+                f"({type(exc).__name__})"
+            ) from None
         self.colbert_dim = colbert_dim
         self.max_tokens = max_tokens
         # projeção aleatória fixa 1024 -> colbert_dim (Johnson-Lindenstrauss preserva MaxSim)
         rng = np.random.default_rng(42)
         self._proj = (rng.standard_normal((1024, colbert_dim)) / np.sqrt(colbert_dim)).astype(np.float32)
+        projection_digest = hashlib.sha256(
+            self._proj.astype("<f4", copy=False).tobytes(order="C")
+        ).hexdigest()
+        self.index_spec = EncoderIndexSpec(
+            model=self.MODEL,
+            revision=self.REVISION,
+            max_structural_tokens=max_tokens,
+            structural_projection=(
+                "gaussian-jl-pcg64-seed42-sha256:" + projection_digest
+            ),
+            query_max_tokens=self.QUERY_MAX_TOKENS,
+            passage_max_tokens=self.PASSAGE_MAX_TOKENS,
+            sparse_version="bge-m3-lexical-weights-v1",
+            schema_version="rag3d-trivec-v2",
+        )
 
     def encode(self, texts: List[str], is_query: bool = False) -> List[TriVec]:
         # max_length no tamanho real do conteúdo: o padrão 8192 deixa a
@@ -60,7 +136,9 @@ class Bgem3Encoder(BaseEncoder):
             return_dense=True,
             return_sparse=True,
             return_colbert_vecs=True,
-            max_length=256 if is_query else 1024,
+            max_length=(
+                self.QUERY_MAX_TOKENS if is_query else self.PASSAGE_MAX_TOKENS
+            ),
         )
         res: List[TriVec] = []
         for i in range(len(texts)):
@@ -93,9 +171,28 @@ class HashEncoder(BaseEncoder):
     name = "hash"
 
     def __init__(self, dense_dim: int = 1024, colbert_dim: int = 128, max_tokens: int = 256):
+        limits = DEFAULT_RETRIEVAL_LIMITS
+        _bounded_dimension("dense_dim", dense_dim, limits.max_dense_dim)
+        _bounded_dimension(
+            "colbert_dim", colbert_dim, limits.max_structural_dim
+        )
+        _bounded_dimension(
+            "max_tokens", max_tokens, limits.max_structural_tokens
+        )
+        _validate_structural_shape(colbert_dim, max_tokens)
         self.dense_dim = dense_dim
         self.colbert_dim = colbert_dim
         self.max_tokens = max_tokens
+        self.index_spec = EncoderIndexSpec(
+            model="rag3d/hash",
+            revision="crc32-char-ngram-v1",
+            max_structural_tokens=max_tokens,
+            structural_projection="hash-token-ngrams-2-4-v1",
+            query_max_tokens=max_tokens,
+            passage_max_tokens=max_tokens,
+            sparse_version="crc32-unicode-word-v1",
+            schema_version="rag3d-trivec-v2",
+        )
 
     def _dense(self, text: str) -> np.ndarray:
         v = np.zeros(self.dense_dim, dtype=np.float32)
@@ -135,11 +232,56 @@ class HashEncoder(BaseEncoder):
 
 # --------------------------------------------------------------- factory ---
 
-def make_encoder(kind: str, dense_dim: int, colbert_dim: int, max_tokens: int) -> BaseEncoder:
-    if kind in ("auto", "bge-m3"):
-        try:
-            return Bgem3Encoder(colbert_dim=colbert_dim, max_tokens=max_tokens)
-        except Exception:
-            if kind == "bge-m3":
-                raise
-    return HashEncoder(dense_dim=dense_dim, colbert_dim=colbert_dim, max_tokens=max_tokens)
+
+def make_encoder(
+    kind: str,
+    dense_dim: int,
+    colbert_dim: int,
+    max_tokens: int,
+    allow_fallback: bool = True,
+) -> BaseEncoder:
+    """Create an encoder with an explicit fallback policy.
+
+    ``allow_fallback=True`` remains the API default for legacy callers.  The V2
+    pipeline passes its fail-closed configuration explicitly.  Asking for the
+    hash/fallback encoder is never considered a fallback and therefore does not
+    require this permission.
+    """
+    limits = DEFAULT_RETRIEVAL_LIMITS
+    for name, value, maximum in (
+        ("dense_dim", dense_dim, limits.max_dense_dim),
+        ("colbert_dim", colbert_dim, limits.max_structural_dim),
+        ("max_tokens", max_tokens, limits.max_structural_tokens),
+    ):
+        _bounded_dimension(name, value, maximum)
+    _validate_structural_shape(colbert_dim, max_tokens)
+    if not isinstance(allow_fallback, bool):
+        raise TypeError("allow_fallback must be bool")
+    if not isinstance(kind, str):
+        raise TypeError("encoder kind must be a string")
+
+    normalized = kind.strip().lower()
+    if normalized in ("fallback", "hash"):
+        return HashEncoder(
+            dense_dim=dense_dim, colbert_dim=colbert_dim, max_tokens=max_tokens
+        )
+    if normalized not in ("auto", "bge-m3"):
+        raise ValueError(
+            "invalid encoder; expected auto, bge-m3, fallback, or hash"
+        )
+    if normalized == "bge-m3" and dense_dim != 1024:
+        raise ValueError("bge-m3 requires dense_dim=1024")
+
+    try:
+        encoder = Bgem3Encoder(colbert_dim=colbert_dim, max_tokens=max_tokens)
+        if dense_dim != 1024:
+            raise ValueError("bge-m3 requires dense_dim=1024")
+        return encoder
+    except Exception:
+        # Explicit BGE is a strict request.  Auto is strict too when V2's
+        # production-safe fallback flag is disabled.
+        if normalized == "bge-m3" or not allow_fallback:
+            raise
+        return HashEncoder(
+            dense_dim=dense_dim, colbert_dim=colbert_dim, max_tokens=max_tokens
+        )

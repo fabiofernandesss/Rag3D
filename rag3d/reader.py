@@ -18,7 +18,7 @@ from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional
 
 from .config import TriRagConfig
-from .llm import LLM
+from .llm import LLM, validate_llm_text
 
 _AXIS_LABEL = {
     "semantico": "EIXO SEMÂNTICO (significado)",
@@ -95,8 +95,13 @@ class Reader:
                 if extra:
                     parts.append(f"{_AXIS_LABEL.get(axis, axis)} — top 3:\n" + _fmt_blocks(extra, 600))
         prompt = "\n\n".join(parts) + f"\n\nPERGUNTA: {query}"
-        answer = self.llm.complete(_SYS_READER, [{"role": "user", "content": prompt}],
-                                   max_tokens=self.cfg.max_answer_tokens)
+        answer = validate_llm_text(
+            self.llm.complete(
+                _SYS_READER,
+                [{"role": "user", "content": prompt}],
+                max_tokens=self.cfg.max_answer_tokens,
+            )
+        )
         return {"answer": answer, "read_mode": "fast", "sub_answers": None}
 
     # ------------------------------------------------------------------- tri
@@ -112,13 +117,15 @@ class Reader:
             body = _fmt_blocks(views.get(axis, []), 3000)
             prompt = f"VISÃO DO SEU EIXO:\n{body}\n\nPERGUNTA: {query}"
             try:
-                return llm.complete(
-                    _SYS_AXIS.format(axis=_AXIS_LABEL.get(axis, axis)),
-                    [{"role": "user", "content": prompt}],
-                    max_tokens=500,
+                return validate_llm_text(
+                    llm.complete(
+                        _SYS_AXIS.format(axis=_AXIS_LABEL.get(axis, axis)),
+                        [{"role": "user", "content": prompt}],
+                        max_tokens=500,
+                    )
                 )
-            except Exception as e:
-                return f"(leitor do eixo falhou: {e})"
+            except Exception:
+                return "(leitor do eixo falhou)"
 
         axes = list(views.keys())
         with ThreadPoolExecutor(max_workers=3) as ex:
@@ -134,8 +141,13 @@ class Reader:
         parts.append("EVIDÊNCIAS MAIS FORTES (fusão quântica dos eixos):\n" + _fmt_blocks(context["blocks"], 6500))
         prompt = "\n\n".join(parts) + f"\n\nPERGUNTA ORIGINAL: {query}\n\nFaça a leitura final."
 
-        final = self.llm.complete(_SYS_FINAL, [{"role": "user", "content": prompt}],
-                                  max_tokens=self.cfg.max_answer_tokens)
+        final = validate_llm_text(
+            self.llm.complete(
+                _SYS_FINAL,
+                [{"role": "user", "content": prompt}],
+                max_tokens=self.cfg.max_answer_tokens,
+            )
+        )
         return {"answer": final, "read_mode": "tri", "sub_answers": sub}
 
     # ------------------------------------------------------------------ API

@@ -1,0 +1,3096 @@
+{
+  "schema_version": "2.0",
+  "run": {
+    "id": "retrieval-v2-d64bb638c6f2-1786757763",
+    "created_at": "2026-08-15T01:36:02.884249+00:00",
+    "commit": "11c2fd6fa4eadf9cc4f4b6f842eedd51824c360d",
+    "dirty": false,
+    "process_cpu_seconds": 7.264166,
+    "cpu_scope": "whole_shared_python_process_not_attributable_per_system"
+  },
+  "dataset": {
+    "id": "retrieval-v2-synthetic-v1",
+    "version": "1.0.0",
+    "claim_scope": "synthetic",
+    "split": "calibration",
+    "corpus_sha256": "3a3fcfddb3fd44e9b0d2dff51feb9200de1507418742a239d3e4430247e1312f",
+    "queries_sha256": "8a3221f579172a7012c1ca60c36f35c2ca8a1c6a1cbc13824cd4b2c25c5135f8",
+    "qrels_sha256": "23c2ee1a3e62f0af0a05ac65eb2def23df692932807c21bcea31f92d4c296920",
+    "manifest_sha256": "c884ff5ea99c5a6dfa3bae33eea7da39f7149fd37cea4f4621ddc5006b54e7e7",
+    "dataset_sha256": "1bf9714c33354a87ebbb67d45c17eb46dd7703a6728fae0a37e18d932560d556",
+    "documents": 10000,
+    "chunks": 10000,
+    "queries": 7,
+    "queries_with_positive_qrels": 5,
+    "seed": 20260813,
+    "selection": "sha256(seed + NUL + document_id), before qrels materialization"
+  },
+  "environment": {
+    "hardware": "arm64; cpu_count=11; memory_bytes=19327352832; processor=arm",
+    "os": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+    "python": "3.14.5",
+    "versions": {
+      "rag3d": "workspace",
+      "numpy": "2.5.2",
+      "psycopg": "3.3.4",
+      "pgvector_python": "0.5.0"
+    },
+    "backend_health": {
+      "pgvector": {
+        "status": "ok",
+        "backend": "pgvector",
+        "postgres_version": "17.6 (Homebrew)",
+        "pgvector_version": "0.8.5",
+        "schema_version": "1",
+        "hnsw": {
+          "exists": true,
+          "valid": true,
+          "ready": true,
+          "definition_valid": true,
+          "method": "hnsw",
+          "opclass": "vector_cosine_ops",
+          "column": "embedding",
+          "vector_type": "vector(128)",
+          "options": {
+            "m": 16,
+            "ef_construction": 128
+          },
+          "index_name": "rag3d_v2_chunks_embedding_hnsw"
+        },
+        "search_mode": "ann",
+        "last_dense_mode": null
+      }
+    }
+  },
+  "config": {
+    "backends": [
+      "pgvector"
+    ],
+    "pipelines": [
+      "legacy",
+      "v2"
+    ],
+    "encoder": "hash",
+    "dense_dim": 128,
+    "structural_dim": 32,
+    "max_structural_tokens": 64,
+    "top_k": 20,
+    "channel_k": 100,
+    "rrf_k": 60,
+    "structural_candidate_depth": 100,
+    "ablations": [],
+    "remote_write_guard": "allow_remote + explicit write env + test/bench database name",
+    "pgvector_mode": "hnsw",
+    "hnsw_minimum_recall_at_k": 0.98,
+    "hnsw": {
+      "m": 16,
+      "ef_construction": 128,
+      "ef_search": 400,
+      "iterative_scan": "off",
+      "max_scan_tuples": 20000,
+      "scan_mem_multiplier": 1.0,
+      "concurrently": false
+    }
+  },
+  "protocol": {
+    "tuning_allowed": true,
+    "warmup": 3,
+    "repetitions": 5,
+    "bootstrap_samples": 10000,
+    "confidence": 0.95,
+    "quality_unit": "query",
+    "latency_unit": "query repetition grouped by query",
+    "order": "balanced interleaving, reversed on alternating query/repetition",
+    "seeds": {
+      "dataset": 20260813,
+      "bootstrap": 20260813
+    },
+    "config_sha256": "d64bb638c6f28dfe8bd6b3e11ec41d0ce409458239fa70b56bf2faa2eccfb93e",
+    "validation_lock_sha256": null,
+    "validation_lock_identity": null
+  },
+  "systems": [
+    {
+      "id": "legacy-pgvector",
+      "config": {
+        "backend": "pgvector",
+        "pipeline": "legacy",
+        "ablation": "legacy",
+        "encoder": "hash",
+        "dense_dim": 128,
+        "structural_dim": 32,
+        "top_k": 20,
+        "channel_k": 100,
+        "fusion": "quantum",
+        "rrf_k": 60,
+        "channel_weights": [
+          1.0,
+          0.8,
+          0.9
+        ],
+        "dense_enabled": true,
+        "sparse_enabled": true,
+        "structural": true,
+        "structural_candidate_depth": 100,
+        "reranker": "none",
+        "diversity": "legacy-default",
+        "mmr_lambda": null,
+        "dpp_alpha": null,
+        "dpp_jitter": null,
+        "pgvector_dense_mode": "hnsw",
+        "stage_observer": "derived_legacy_adapter"
+      },
+      "queries": [
+        {
+          "query_id": "calibration-exact-code",
+          "relevant_count": 2,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000000",
+            "doc-000002",
+            "doc-000004",
+            "doc-000006",
+            "doc-000001",
+            "doc-000034",
+            "doc-000094",
+            "doc-000009",
+            "doc-000074",
+            "doc-000005",
+            "doc-000098",
+            "doc-000092",
+            "doc-000054",
+            "doc-000007",
+            "doc-000008",
+            "doc-000454",
+            "doc-000069",
+            "doc-000044",
+            "doc-000084",
+            "doc-000994"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "unobserved",
+              "limit": 200,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "fusion": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "structural": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "reranker": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "unknown",
+            "reason": "legacy pipeline has no native full-stage observer",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "a01048e6908909fbb2877b22581b916d06957fbe54f058287d15ab8596a2b5a9",
+              "sparse": "648fbd26d7aae583cd4412e368da08873fccfdc905f0661540c0e627959803c4",
+              "final": "cde6dcae9a4f366820ca811b74ae510d28118224b7f46ff1fa43dcfe04e21a76"
+            },
+            "violations": null
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 0.8503449055347546,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.015789473684210527,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              68.996875,
+              64.415958,
+              65.713417,
+              64.962209,
+              62.041833
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-topic-deadline",
+          "relevant_count": 2,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000012",
+            "doc-000013",
+            "doc-000069",
+            "doc-000037",
+            "doc-000124",
+            "doc-000917",
+            "doc-000068",
+            "doc-000717",
+            "doc-000093",
+            "doc-000829",
+            "doc-000045",
+            "doc-000036",
+            "doc-000125",
+            "doc-000164",
+            "doc-000797",
+            "doc-000349",
+            "doc-000149",
+            "doc-000109",
+            "doc-000092",
+            "doc-000044"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "unobserved",
+              "limit": 200,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "fusion": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "structural": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "reranker": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "unknown",
+            "reason": "legacy pipeline has no native full-stage observer",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "a88765170e6079256a89bb0d20bb01f0d16d0277981144d13814e83c52509b92",
+              "sparse": "a31295a0f856fcdb8ad56faefbd90ffd58143dea3e7802727151af8da00a76ab",
+              "final": "b2849bd1d3f2a3191006205f8a815dca21fc0dbe100870410baf9caf3e74a892"
+            },
+            "violations": null
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 1.0,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.031578947368421054,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              76.213833,
+              76.202709,
+              71.237917,
+              78.175084,
+              73.869792
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-hybrid-limit",
+          "relevant_count": 1,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000027",
+            "doc-000002",
+            "doc-000001",
+            "doc-000009",
+            "doc-000057",
+            "doc-000096",
+            "doc-000006",
+            "doc-000008",
+            "doc-000032",
+            "doc-000072",
+            "doc-000048",
+            "doc-000000",
+            "doc-000064",
+            "doc-000085",
+            "doc-000214",
+            "doc-000097",
+            "doc-000033",
+            "doc-000041",
+            "doc-000025",
+            "doc-000088"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 0.0
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "unobserved",
+              "limit": 200,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "fusion": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "structural": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "reranker": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "unknown",
+            "reason": "legacy pipeline has no native full-stage observer",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "a1891aa6ba67ea2ff9aba09bfa2ac62ccb8d1893d37886015c56e793b16a83c5",
+              "sparse": "7182dd53dd8cb02518fe6cc2d6616184230bab03163e06c959a19e49b2929720",
+              "final": "a782ceb0e017e796e90f045b118e2b7a48d610b0eff3171b8fbfd89898e71ffc"
+            },
+            "violations": null
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 1.0,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.021052631578947368,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              66.7355,
+              65.338875,
+              62.043375,
+              65.164334,
+              61.966042
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-multifact",
+          "relevant_count": 3,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000036",
+            "doc-000039",
+            "doc-000006",
+            "doc-000366",
+            "doc-000037",
+            "doc-000030",
+            "doc-000000",
+            "doc-000016",
+            "doc-000398",
+            "doc-000096",
+            "doc-000454",
+            "doc-000023",
+            "doc-000002",
+            "doc-000008",
+            "doc-000094",
+            "doc-000038",
+            "doc-000493",
+            "doc-000017",
+            "doc-000086",
+            "doc-000014"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 0.6666666666666666
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "unobserved",
+              "limit": 200,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "fusion": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "structural": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "reranker": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "unknown",
+            "reason": "legacy pipeline has no native full-stage observer",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "d291e55f2a81a0c528e4c2b7b054f293bec12819f4b4df2b2b5400f488108519",
+              "sparse": "542c97c20453f09ebd5b144c9600b186d3b66de850a54dcbd31b5d6d7bb49be3",
+              "final": "1eadfd74833d2683499214746221d8a6618e255f9f8805cc135ba9c99a953627"
+            },
+            "violations": null
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 0.8884990574692628,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.010526315789473684,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              29.863666,
+              29.21425,
+              27.2555,
+              29.558959,
+              28.6965
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-duplicate",
+          "relevant_count": 2,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000000",
+            "doc-000006",
+            "doc-000037",
+            "doc-000002",
+            "doc-000004",
+            "doc-000030",
+            "doc-000001",
+            "doc-000007",
+            "doc-000005",
+            "doc-000454",
+            "doc-000950",
+            "doc-000054",
+            "doc-000036",
+            "doc-000060",
+            "doc-000940",
+            "doc-000493",
+            "doc-000405",
+            "doc-000086",
+            "doc-000021",
+            "doc-000084"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 0.5
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "unobserved",
+              "limit": 200,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "fusion": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "structural": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "reranker": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "unknown",
+            "reason": "legacy pipeline has no native full-stage observer",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "30ce819dca8cab6867afa6d685bf1240613dedfcd1187fe83edfeda8522fbc3a",
+              "sparse": "648fbd26d7aae583cd4412e368da08873fccfdc905f0661540c0e627959803c4",
+              "final": "d40bc5e0d7ce69dbd20585ea51d6d49459c988139ece6107a998c68da39630ea"
+            },
+            "violations": null
+          },
+          "metrics": {
+            "recall_at_5": 0.5,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 0.8175295903539446,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.015789473684210527,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              203.319792,
+              47.293708,
+              46.175084,
+              43.698084,
+              45.023584
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-empty",
+          "relevant_count": 0,
+          "unanswerable_gold": null,
+          "ranking": [
+            "doc-009778",
+            "doc-001346",
+            "doc-009754",
+            "doc-009730",
+            "doc-009922",
+            "doc-004906",
+            "doc-009658",
+            "doc-009734",
+            "doc-005050",
+            "doc-005014",
+            "doc-006658",
+            "doc-009554",
+            "doc-005090",
+            "doc-009818",
+            "doc-005058",
+            "doc-009746",
+            "doc-009786",
+            "doc-009794",
+            "doc-009714",
+            "doc-008626"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 0,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "union": {
+              "status": "unobserved",
+              "limit": 200,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "fusion": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "structural": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "reranker": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            }
+          },
+          "lineage": {
+            "status": "unknown",
+            "reason": "legacy pipeline has no native full-stage observer",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "2c0b97b8cce29e847e964c1476a83331a769f2ff2d335591da119a4c1cce9bb4",
+              "sparse": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "final": "f88fdac37b14522fc3a9337ac13f726387c78d88ccf1fdad96808cafe5ba5c1c"
+            },
+            "violations": null
+          },
+          "metrics": {
+            "recall_at_5": null,
+            "recall_at_10": null,
+            "recall_at_20": null,
+            "mrr_at_20": null,
+            "ndcg_at_10": null,
+            "coverage_at_20": null,
+            "duplicate_rate_at_20": 0.0,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              5.674417,
+              5.066458,
+              4.796917,
+              4.749833,
+              4.781542
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-no-answer",
+          "relevant_count": 0,
+          "unanswerable_gold": true,
+          "ranking": [
+            "doc-000790",
+            "doc-004969",
+            "doc-009522",
+            "doc-000981",
+            "doc-001193",
+            "doc-004648",
+            "doc-001108",
+            "doc-006640",
+            "doc-009760",
+            "doc-004597",
+            "doc-007045",
+            "doc-000928",
+            "doc-005729",
+            "doc-000297",
+            "doc-009761",
+            "doc-001081",
+            "doc-004240",
+            "doc-004985",
+            "doc-005169",
+            "doc-002567"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "union": {
+              "status": "unobserved",
+              "limit": 200,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "fusion": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "structural": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "reranker": {
+              "status": "unobserved",
+              "limit": 100,
+              "candidate_count": null,
+              "duplicate_ids_removed": null,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            }
+          },
+          "lineage": {
+            "status": "unknown",
+            "reason": "legacy pipeline has no native full-stage observer",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "29d8106d28462a3a455dd66c2021defb28777961921ec5db0f0ca78757c6c190",
+              "sparse": "8a57b5951944781ef2e12284cfb64c6f3f9d86c16f4be4211c1b8dde07ff6b1e",
+              "final": "ed5cbf32bfd5a9105b0716bfb37316ac0f27bd8fb872ace633557447c551637c"
+            },
+            "violations": null
+          },
+          "metrics": {
+            "recall_at_5": null,
+            "recall_at_10": null,
+            "recall_at_20": null,
+            "mrr_at_20": null,
+            "ndcg_at_10": null,
+            "coverage_at_20": null,
+            "duplicate_rate_at_20": 0.005263157894736842,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              50.824042,
+              46.775708,
+              45.882375,
+              46.522459,
+              45.374834
+            ]
+          },
+          "errors": []
+        }
+      ],
+      "aggregate": {
+        "quality": {
+          "citation_precision": null,
+          "coverage_at_20": 1.0,
+          "duplicate_ids_removed": 0.0,
+          "duplicate_rate_at_20": 0.014285714285714285,
+          "mrr_at_20": 1.0,
+          "ndcg_at_10": 0.9112747106715924,
+          "no_answer_correct": null,
+          "recall_at_10": 1.0,
+          "recall_at_20": 1.0,
+          "recall_at_5": 0.9,
+          "support": {
+            "citation_precision": 0,
+            "coverage_at_20": 5,
+            "duplicate_ids_removed": 7,
+            "duplicate_rate_at_20": 7,
+            "mrr_at_20": 5,
+            "ndcg_at_10": 5,
+            "no_answer_correct": 0,
+            "recall_at_10": 5,
+            "recall_at_20": 5,
+            "recall_at_5": 5
+          },
+          "duplicate_ids_removed_total": 0
+        },
+        "stage_recall": {
+          "dense": 0.6333333333333333,
+          "sparse": 1.0,
+          "union": null,
+          "fusion": null,
+          "structural": null,
+          "reranker": null,
+          "final": 1.0
+        },
+        "performance": {
+          "latency_ms": {
+            "p50": 47.293708,
+            "p95": 76.80220829999999,
+            "p99": 160.77059127999956
+          },
+          "latency_p95_bootstrap": {
+            "estimate": 76.80220829999999,
+            "ci": [
+              65.7578625,
+              203.319792
+            ],
+            "confidence": 0.95,
+            "percentile": 0.95,
+            "samples": 10000,
+            "seed": 20260813,
+            "queries": 7,
+            "observations": 35,
+            "unit": "query_cluster"
+          },
+          "stage_latency_ms": {},
+          "qps": {
+            "qps": null,
+            "successful_qps_sample": 19.298361583161828,
+            "serial_attempt_rate_sample": 19.298361583161828,
+            "completed": 35,
+            "errors": 0,
+            "calls_including_errors": 35,
+            "error_rate": 0.0,
+            "elapsed_active_seconds": 1.8136254649999997,
+            "concurrency": 1,
+            "cache_mode": "warm",
+            "process_isolation": false,
+            "preregistered_window": false,
+            "claim_eligible": false,
+            "status": "non_claim",
+            "non_claim_reasons": [
+              "successful_calls_below_100",
+              "measurement_window_below_5_seconds",
+              "process_not_isolated",
+              "measurement_window_not_preregistered"
+            ],
+            "reason": "successful_calls_below_100;measurement_window_below_5_seconds;process_not_isolated;measurement_window_not_preregistered",
+            "measurement_window": "serial active calls in balanced interleaved order; not duration-controlled"
+          },
+          "cold_latency_ms": {
+            "status": "measured",
+            "cold_latency_ms": 98.749458,
+            "sample_count": 1,
+            "single_run": true,
+            "claim_eligible": false,
+            "comparable_across_systems": false,
+            "cache_mode": "best_effort_cold_before_warmup",
+            "reason": "single shared-backend observation; descriptive only",
+            "error_type": null
+          },
+          "memory": {
+            "rss_baseline_bytes": 80723968,
+            "rss_after_ingest_bytes": 103415808,
+            "rss_ingest_delta_bytes": 22691840,
+            "rss_peak_bytes": 109838336,
+            "rss_peak_delta_bytes": 29114368,
+            "scope": "benchmark Python process; ru_maxrss high-water mark",
+            "python_process_rss_peak_bytes": 109838336,
+            "postgres_server_rss_peak_bytes": null,
+            "shared_process": true,
+            "comparable_across_systems": false,
+            "comparison_reason": "systems share one Python process and ru_maxrss high-water state"
+          },
+          "storage": {
+            "status": "available",
+            "index_bytes": 109191168,
+            "size_per_chunk_bytes": 10919.1168,
+            "definition": "sum pg_total_relation_size for fixed rag3d_v2_* benchmark relations",
+            "size_per_chunk_definition": "index_bytes / ingested_chunks",
+            "hnsw_build_seconds": 0.9778889580047689,
+            "hnsw_build_status": "measured"
+          },
+          "ingest": {
+            "documents": 10000,
+            "chunks": 10000,
+            "seconds": 9.501849082997069,
+            "documents_per_second": 1052.4267342757885,
+            "chunks_per_second": 1052.4267342757885
+          }
+        },
+        "quality_gate": {
+          "status": "not_evaluated",
+          "claim_scope": "synthetic",
+          "reason": "synthetic calibration data cannot establish a global quality gain",
+          "duplicate_ids_removed_total": 0,
+          "stage_lineage_violations": 0
+        }
+      }
+    },
+    {
+      "id": "v2-pgvector",
+      "config": {
+        "backend": "pgvector",
+        "pipeline": "v2",
+        "ablation": "candidate_default",
+        "encoder": "hash",
+        "dense_dim": 128,
+        "structural_dim": 32,
+        "top_k": 20,
+        "channel_k": 100,
+        "fusion": "rrf",
+        "rrf_k": 60,
+        "channel_weights": [
+          1.0,
+          0.8,
+          0.9
+        ],
+        "dense_enabled": true,
+        "sparse_enabled": true,
+        "structural": true,
+        "structural_candidate_depth": 100,
+        "reranker": "none",
+        "diversity": "none",
+        "mmr_lambda": null,
+        "dpp_alpha": null,
+        "dpp_jitter": null,
+        "pgvector_dense_mode": "hnsw",
+        "stage_observer": "native_v2_stage_observer"
+      },
+      "queries": [
+        {
+          "query_id": "calibration-exact-code",
+          "relevant_count": 2,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000000",
+            "doc-000001",
+            "doc-000004",
+            "doc-000002",
+            "doc-000005",
+            "doc-000006",
+            "doc-000034",
+            "doc-000009",
+            "doc-000454",
+            "doc-000094",
+            "doc-000074",
+            "doc-000098",
+            "doc-000008",
+            "doc-000058",
+            "doc-000007",
+            "doc-000054",
+            "doc-000981",
+            "doc-000092",
+            "doc-004597",
+            "doc-000093"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "observed",
+              "limit": 200,
+              "candidate_count": 198,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "fusion": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "structural": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "reranker": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "passed",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "union",
+              "fusion",
+              "structural",
+              "reranker",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "a01048e6908909fbb2877b22581b916d06957fbe54f058287d15ab8596a2b5a9",
+              "sparse": "648fbd26d7aae583cd4412e368da08873fccfdc905f0661540c0e627959803c4",
+              "union": "aa5778485c225a69c8450bc3edb42ce9cf381e1bed10f443f7b0df5683804ec7",
+              "fusion": "d1accdaf1202062cbebb0c4840e3131b9d3dbd95cffca6a7b8bf05ecc05d7a77",
+              "structural": "a6bc0fb7a206ad7b99d6e676286a75775fc815d4df06736f30699fefefeaf4b5",
+              "reranker": "a6bc0fb7a206ad7b99d6e676286a75775fc815d4df06736f30699fefefeaf4b5",
+              "final": "afe12c933ea03219c37b40173df70322c80e02fd4687313ce58149330b844ed9"
+            },
+            "violations": []
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 1.0,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.021052631578947368,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              64.49275,
+              63.081042,
+              60.634042,
+              63.906834,
+              62.507833
+            ],
+            "normalize": [
+              0.011084,
+              0.009042,
+              0.011583,
+              0.010333,
+              0.010625
+            ],
+            "expand": [
+              0.000958,
+              0.000542,
+              0.000833,
+              0.000458,
+              0.000625
+            ],
+            "encode": [
+              0.117667,
+              0.111375,
+              0.114208,
+              0.111875,
+              0.107375
+            ],
+            "dense": [
+              2.33025,
+              2.434625,
+              2.446875,
+              2.718875,
+              2.624208
+            ],
+            "sparse": [
+              58.5795,
+              56.975459,
+              54.981292,
+              58.139125,
+              56.399833
+            ],
+            "union": [
+              0.027875,
+              0.027875,
+              0.031791,
+              0.027708,
+              0.026375
+            ],
+            "fusion": [
+              0.264417,
+              0.295792,
+              0.295,
+              0.266375,
+              0.247666
+            ],
+            "structural": [
+              2.353083,
+              2.308791,
+              1.990334,
+              1.84425,
+              2.312042
+            ],
+            "rerank": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "diversity": [
+              0.026958,
+              0.024375,
+              0.024125,
+              0.025208,
+              0.026042
+            ],
+            "hydrate": [
+              0.505041,
+              0.583417,
+              0.459291,
+              0.481542,
+              0.485583
+            ],
+            "stitch": [
+              0.001834,
+              0.001625,
+              0.001541,
+              0.001625,
+              0.001708
+            ],
+            "total_retrieval": [
+              64.404875,
+              62.994667,
+              60.557666,
+              63.827583,
+              62.433583
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-topic-deadline",
+          "relevant_count": 2,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000012",
+            "doc-000013",
+            "doc-000045",
+            "doc-000037",
+            "doc-000069",
+            "doc-000068",
+            "doc-000036",
+            "doc-000965",
+            "doc-000124",
+            "doc-000180",
+            "doc-000917",
+            "doc-004597",
+            "doc-000717",
+            "doc-000981",
+            "doc-000524",
+            "doc-003092",
+            "doc-008765",
+            "doc-000885",
+            "doc-009908",
+            "doc-002181"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "observed",
+              "limit": 200,
+              "candidate_count": 194,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "fusion": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "structural": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "reranker": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "passed",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "union",
+              "fusion",
+              "structural",
+              "reranker",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "a88765170e6079256a89bb0d20bb01f0d16d0277981144d13814e83c52509b92",
+              "sparse": "a31295a0f856fcdb8ad56faefbd90ffd58143dea3e7802727151af8da00a76ab",
+              "union": "612087f8d76fe1b4be9e6ae827b583ab2df65d26e78321c4dc254b7f82c419d6",
+              "fusion": "28defa2efcd14a175410a43b5c0eafd7b27ab90da356bc20932d293492d3ad64",
+              "structural": "9d8b8c8fdd2ff9a35cfc4451fbd62c9b45e153be7dbb557f3e3bc736d6294c7a",
+              "reranker": "9d8b8c8fdd2ff9a35cfc4451fbd62c9b45e153be7dbb557f3e3bc736d6294c7a",
+              "final": "14417480e6d010e7f199810cad178d3ed4c042d9d19f9c56a599cc3c2ba2289b"
+            },
+            "violations": []
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 1.0,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.015789473684210527,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              76.461208,
+              73.722709,
+              70.312167,
+              74.161167,
+              68.819709
+            ],
+            "normalize": [
+              0.0125,
+              0.014209,
+              0.010208,
+              0.01475,
+              0.010541
+            ],
+            "expand": [
+              0.000709,
+              0.000791,
+              0.0005,
+              0.000917,
+              0.0005
+            ],
+            "encode": [
+              0.189583,
+              0.166375,
+              0.166,
+              0.185709,
+              0.179125
+            ],
+            "dense": [
+              1.942459,
+              1.926541,
+              1.760083,
+              1.913209,
+              1.796541
+            ],
+            "sparse": [
+              70.7975,
+              68.07025,
+              65.447084,
+              68.801792,
+              63.912833
+            ],
+            "union": [
+              0.03075,
+              0.029375,
+              0.029292,
+              0.032125,
+              0.029125
+            ],
+            "fusion": [
+              0.304125,
+              0.255875,
+              0.268417,
+              0.313084,
+              0.269166
+            ],
+            "structural": [
+              2.293792,
+              2.43,
+              1.89925,
+              2.061792,
+              1.879084
+            ],
+            "rerank": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "diversity": [
+              0.025458,
+              0.034875,
+              0.023625,
+              0.030791,
+              0.023375
+            ],
+            "hydrate": [
+              0.558291,
+              0.504875,
+              0.432375,
+              0.53625,
+              0.462208
+            ],
+            "stitch": [
+              0.001958,
+              0.002,
+              0.001833,
+              0.001875,
+              0.001583
+            ],
+            "total_retrieval": [
+              76.376333,
+              73.620917,
+              70.228625,
+              74.080125,
+              68.746916
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-hybrid-limit",
+          "relevant_count": 1,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000027",
+            "doc-000002",
+            "doc-000001",
+            "doc-000009",
+            "doc-000008",
+            "doc-000057",
+            "doc-000000",
+            "doc-000096",
+            "doc-000097",
+            "doc-000032",
+            "doc-000064",
+            "doc-004597",
+            "doc-000006",
+            "doc-000981",
+            "doc-000072",
+            "doc-000033",
+            "doc-000432",
+            "doc-000048",
+            "doc-008560",
+            "doc-002236"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 0.0
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "observed",
+              "limit": 200,
+              "candidate_count": 200,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "fusion": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "structural": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "reranker": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "passed",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "union",
+              "fusion",
+              "structural",
+              "reranker",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "a1891aa6ba67ea2ff9aba09bfa2ac62ccb8d1893d37886015c56e793b16a83c5",
+              "sparse": "7182dd53dd8cb02518fe6cc2d6616184230bab03163e06c959a19e49b2929720",
+              "union": "7cb5f12ea68b66813a48b272ac8c2857ba874a01c885d926803f0355874e7e1e",
+              "fusion": "44cb4d2b1701701a4e647bcfbd9c48ce58559e6e5cb395a08e587d4e21e13147",
+              "structural": "47fd3002e1af0dce963304df1b0ea999d0046ac09bcba1cd7ad34142f31208bb",
+              "reranker": "47fd3002e1af0dce963304df1b0ea999d0046ac09bcba1cd7ad34142f31208bb",
+              "final": "ece29a65df20af5a0c8a2b0de0619eeca92736c8b2c47335854d0d7624ae6043"
+            },
+            "violations": []
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 1.0,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.021052631578947368,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              65.025583,
+              63.057667,
+              67.066209,
+              64.124,
+              65.86775
+            ],
+            "normalize": [
+              0.011084,
+              0.010917,
+              0.011625,
+              0.011625,
+              0.013917
+            ],
+            "expand": [
+              0.000625,
+              0.000625,
+              0.000875,
+              0.000875,
+              0.001083
+            ],
+            "encode": [
+              0.152583,
+              0.184542,
+              0.173959,
+              0.161792,
+              0.168041
+            ],
+            "dense": [
+              2.0865,
+              2.358667,
+              2.197792,
+              2.272416,
+              3.189125
+            ],
+            "sparse": [
+              59.554042,
+              57.5765,
+              54.664375,
+              58.363709,
+              59.533875
+            ],
+            "union": [
+              0.029334,
+              0.0255,
+              0.045916,
+              0.027375,
+              0.027084
+            ],
+            "fusion": [
+              0.283875,
+              0.265125,
+              1.13,
+              0.25975,
+              0.24925
+            ],
+            "structural": [
+              2.066,
+              1.873875,
+              6.916709,
+              2.071417,
+              1.910042
+            ],
+            "rerank": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "diversity": [
+              0.02525,
+              0.024875,
+              0.029375,
+              0.031458,
+              0.024084
+            ],
+            "hydrate": [
+              0.525541,
+              0.466875,
+              1.353917,
+              0.588,
+              0.469166
+            ],
+            "stitch": [
+              0.001917,
+              0.001625,
+              0.004042,
+              0.002125,
+              0.001583
+            ],
+            "total_retrieval": [
+              64.940834,
+              62.983584,
+              66.8315,
+              64.006,
+              65.790459
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-multifact",
+          "relevant_count": 3,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000036",
+            "doc-000039",
+            "doc-000037",
+            "doc-000006",
+            "doc-000880",
+            "doc-000366",
+            "doc-000030",
+            "doc-000016",
+            "doc-000000",
+            "doc-000398",
+            "doc-000454",
+            "doc-000983",
+            "doc-000038",
+            "doc-000127",
+            "doc-000096",
+            "doc-000981",
+            "doc-000017",
+            "doc-000094",
+            "doc-000058",
+            "doc-000008"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 0.6666666666666666
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "observed",
+              "limit": 200,
+              "candidate_count": 195,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "fusion": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "structural": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "reranker": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "passed",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "union",
+              "fusion",
+              "structural",
+              "reranker",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "d291e55f2a81a0c528e4c2b7b054f293bec12819f4b4df2b2b5400f488108519",
+              "sparse": "542c97c20453f09ebd5b144c9600b186d3b66de850a54dcbd31b5d6d7bb49be3",
+              "union": "d9c1657f25a25bc4442b103ea83a0f9c00851a5e053d91c4033fff7d8cb826ed",
+              "fusion": "54e763ff5cf1b5550622f2af9ae4bcd361958f9b190b07d2a93f47ff7c2c9277",
+              "structural": "adaff83dd6d4f08b6a090867591a371da06a1bfa49395090bdb402c8394df63b",
+              "reranker": "adaff83dd6d4f08b6a090867591a371da06a1bfa49395090bdb402c8394df63b",
+              "final": "9331f18293e62db14f86afbda399710f2b0ab9151a48e479d47964eea8e682e0"
+            },
+            "violations": []
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 0.9514426589871553,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.010526315789473684,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              28.631833,
+              27.426375,
+              45.282791,
+              25.368792,
+              27.777667
+            ],
+            "normalize": [
+              0.012208,
+              0.013833,
+              0.020625,
+              0.011,
+              0.01
+            ],
+            "expand": [
+              0.00075,
+              0.001541,
+              0.001167,
+              0.000791,
+              0.0005
+            ],
+            "encode": [
+              0.177,
+              0.177958,
+              0.376625,
+              0.150625,
+              0.152083
+            ],
+            "dense": [
+              2.496125,
+              2.435583,
+              5.676375,
+              2.474959,
+              2.74275
+            ],
+            "sparse": [
+              22.820042,
+              21.888458,
+              36.152875,
+              19.305333,
+              21.904875
+            ],
+            "union": [
+              0.027792,
+              0.026166,
+              0.027042,
+              0.026625,
+              0.027208
+            ],
+            "fusion": [
+              0.2615,
+              0.267833,
+              0.278792,
+              0.662333,
+              0.255667
+            ],
+            "structural": [
+              2.010708,
+              1.868125,
+              1.902917,
+              1.875583,
+              1.901333
+            ],
+            "rerank": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "diversity": [
+              0.024292,
+              0.024084,
+              0.025542,
+              0.025167,
+              0.02325
+            ],
+            "hydrate": [
+              0.517917,
+              0.47325,
+              0.490542,
+              0.560958,
+              0.48975
+            ],
+            "stitch": [
+              0.001584,
+              0.001542,
+              0.001583,
+              0.00275,
+              0.00175
+            ],
+            "total_retrieval": [
+              28.537917,
+              27.350167,
+              45.203958,
+              25.285334,
+              27.702833
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-duplicate",
+          "relevant_count": 2,
+          "unanswerable_gold": false,
+          "ranking": [
+            "doc-000000",
+            "doc-000001",
+            "doc-000006",
+            "doc-000002",
+            "doc-000004",
+            "doc-000037",
+            "doc-000005",
+            "doc-000030",
+            "doc-000454",
+            "doc-000036",
+            "doc-000981",
+            "doc-000007",
+            "doc-008636",
+            "doc-000668",
+            "doc-000054",
+            "doc-008560",
+            "doc-007537",
+            "doc-004597",
+            "doc-000790",
+            "doc-000950"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 0.5
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "union": {
+              "status": "observed",
+              "limit": 200,
+              "candidate_count": 197,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "fusion": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "structural": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "reranker": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": 1.0
+            }
+          },
+          "lineage": {
+            "status": "passed",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "union",
+              "fusion",
+              "structural",
+              "reranker",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "30ce819dca8cab6867afa6d685bf1240613dedfcd1187fe83edfeda8522fbc3a",
+              "sparse": "648fbd26d7aae583cd4412e368da08873fccfdc905f0661540c0e627959803c4",
+              "union": "a32d5ad420b6afe13850025487fa83ab6bc8124d8050809b93cf59428739fec0",
+              "fusion": "d2b9e47db20b45e66e4a025f0e8dab84216431c54b728a9d30dbf2d328398b73",
+              "structural": "2532316365f80d0cc8c7aa1bd74cdb2cde3a207ab042d11b21ec73eb9f747b8d",
+              "reranker": "2532316365f80d0cc8c7aa1bd74cdb2cde3a207ab042d11b21ec73eb9f747b8d",
+              "final": "299b00f25bcbfe1400e12219bcfb6c676f77d2f919dcc19e53b1edc6dda735cb"
+            },
+            "violations": []
+          },
+          "metrics": {
+            "recall_at_5": 1.0,
+            "recall_at_10": 1.0,
+            "recall_at_20": 1.0,
+            "mrr_at_20": 1.0,
+            "ndcg_at_10": 1.0,
+            "coverage_at_20": 1.0,
+            "duplicate_rate_at_20": 0.015789473684210527,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              211.293958,
+              44.204666,
+              42.631542,
+              42.945042,
+              44.16075
+            ],
+            "normalize": [
+              0.024209,
+              0.009917,
+              0.01125,
+              0.010666,
+              0.011166
+            ],
+            "expand": [
+              0.00175,
+              0.0005,
+              0.000458,
+              0.000584,
+              0.000958
+            ],
+            "encode": [
+              0.348584,
+              0.163042,
+              0.157291,
+              0.171917,
+              0.1615
+            ],
+            "dense": [
+              8.277375,
+              2.085708,
+              2.127417,
+              2.02925,
+              2.512375
+            ],
+            "sparse": [
+              198.687917,
+              39.072583,
+              37.133208,
+              37.825667,
+              37.92475
+            ],
+            "union": [
+              0.027416,
+              0.025584,
+              0.029125,
+              0.026416,
+              0.026916
+            ],
+            "fusion": [
+              0.739542,
+              0.248208,
+              0.288041,
+              0.255583,
+              0.836583
+            ],
+            "structural": [
+              2.25125,
+              1.858667,
+              2.016792,
+              1.852125,
+              1.914083
+            ],
+            "rerank": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "diversity": [
+              0.024084,
+              0.023792,
+              0.024917,
+              0.023584,
+              0.023667
+            ],
+            "hydrate": [
+              0.539583,
+              0.453875,
+              0.547166,
+              0.485792,
+              0.458042
+            ],
+            "stitch": [
+              0.001917,
+              0.001708,
+              0.001875,
+              0.001625,
+              0.001417
+            ],
+            "total_retrieval": [
+              211.198042,
+              44.129334,
+              42.548041,
+              42.870833,
+              44.084208
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-empty",
+          "relevant_count": 0,
+          "unanswerable_gold": null,
+          "ranking": [],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 0,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 0,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "union": {
+              "status": "observed",
+              "limit": 200,
+              "candidate_count": 0,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "fusion": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 0,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "structural": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 0,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "reranker": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 0,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 0,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            }
+          },
+          "lineage": {
+            "status": "passed",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "union",
+              "fusion",
+              "structural",
+              "reranker",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "sparse": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "union": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "fusion": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "structural": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "reranker": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+              "final": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+            },
+            "violations": []
+          },
+          "metrics": {
+            "recall_at_5": null,
+            "recall_at_10": null,
+            "recall_at_20": null,
+            "mrr_at_20": null,
+            "ndcg_at_10": null,
+            "coverage_at_20": null,
+            "duplicate_rate_at_20": 0.0,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              0.043709,
+              0.063458,
+              0.040125,
+              0.053209,
+              0.051834
+            ],
+            "normalize": [
+              0.008292,
+              0.009375,
+              0.007208,
+              0.006542,
+              0.009416
+            ],
+            "expand": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "encode": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "dense": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "sparse": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "union": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "fusion": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "structural": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "rerank": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "diversity": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "hydrate": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "stitch": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "total_retrieval": [
+              0.009791,
+              0.010875,
+              0.007958,
+              0.007542,
+              0.010583
+            ]
+          },
+          "errors": []
+        },
+        {
+          "query_id": "calibration-no-answer",
+          "relevant_count": 0,
+          "unanswerable_gold": true,
+          "ranking": [
+            "doc-004597",
+            "doc-004969",
+            "doc-000981",
+            "doc-005169",
+            "doc-000790",
+            "doc-005168",
+            "doc-008560",
+            "doc-002368",
+            "doc-007537",
+            "doc-009760",
+            "doc-005029",
+            "doc-009761",
+            "doc-005729",
+            "doc-008719",
+            "doc-009369",
+            "doc-007138",
+            "doc-009368",
+            "doc-003092",
+            "doc-005865",
+            "doc-009969"
+          ],
+          "duplicate_ids_removed": 0,
+          "stages": {
+            "dense": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "sparse": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "union": {
+              "status": "observed",
+              "limit": 200,
+              "candidate_count": 200,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "fusion": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "structural": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "reranker": {
+              "status": "observed",
+              "limit": 100,
+              "candidate_count": 100,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            },
+            "final": {
+              "status": "observed",
+              "limit": 20,
+              "candidate_count": 20,
+              "duplicate_ids_removed": 0,
+              "recall": null
+            }
+          },
+          "lineage": {
+            "status": "passed",
+            "observed_stages": [
+              "dense",
+              "sparse",
+              "union",
+              "fusion",
+              "structural",
+              "reranker",
+              "final"
+            ],
+            "stage_ids_sha256": {
+              "dense": "29d8106d28462a3a455dd66c2021defb28777961921ec5db0f0ca78757c6c190",
+              "sparse": "8a57b5951944781ef2e12284cfb64c6f3f9d86c16f4be4211c1b8dde07ff6b1e",
+              "union": "87a1ff65c65cc2574c9bb5cc69c59e78e330ab5db4e7fa6700fa908b50e3852a",
+              "fusion": "c2f171c4b940022b03e06f8b21fd2755fd4d8732f34ff6b78dbab435f6d32e21",
+              "structural": "16d99fd14dcbfa046522bc7a20468648514d9fab5027c0326436e627a2452a79",
+              "reranker": "16d99fd14dcbfa046522bc7a20468648514d9fab5027c0326436e627a2452a79",
+              "final": "017478bf98e80faf9f7379a62dae57de111f127e1666de46194629faf2db6dd1"
+            },
+            "violations": []
+          },
+          "metrics": {
+            "recall_at_5": null,
+            "recall_at_10": null,
+            "recall_at_20": null,
+            "mrr_at_20": null,
+            "ndcg_at_10": null,
+            "coverage_at_20": null,
+            "duplicate_rate_at_20": 0.015789473684210527,
+            "duplicate_ids_removed": 0,
+            "no_answer_correct": null,
+            "citation_precision": null
+          },
+          "timings_ms": {
+            "total": [
+              44.364458,
+              45.415458,
+              43.411292,
+              42.54175,
+              68.031
+            ],
+            "normalize": [
+              0.011625,
+              0.006791,
+              0.012,
+              0.005042,
+              0.011292
+            ],
+            "expand": [
+              0.00075,
+              0.000625,
+              0.000833,
+              0.000458,
+              0.00075
+            ],
+            "encode": [
+              0.179416,
+              0.192958,
+              0.174791,
+              0.157125,
+              0.17525
+            ],
+            "dense": [
+              2.097917,
+              2.004875,
+              1.995458,
+              1.750167,
+              2.049334
+            ],
+            "sparse": [
+              39.286,
+              39.791417,
+              38.048291,
+              37.850292,
+              62.592417
+            ],
+            "union": [
+              0.0245,
+              0.024417,
+              0.0265,
+              0.024708,
+              0.026209
+            ],
+            "fusion": [
+              0.249792,
+              0.642834,
+              0.258334,
+              0.2335,
+              0.266958
+            ],
+            "structural": [
+              1.786834,
+              1.927583,
+              2.181917,
+              1.782625,
+              1.918417
+            ],
+            "rerank": [
+              0.0,
+              0.0,
+              0.0,
+              0.0,
+              0.0
+            ],
+            "diversity": [
+              0.02425,
+              0.024167,
+              0.022833,
+              0.02275,
+              0.025125
+            ],
+            "hydrate": [
+              0.450417,
+              0.507959,
+              0.43475,
+              0.454583,
+              0.675
+            ],
+            "stitch": [
+              0.001459,
+              0.001792,
+              0.001583,
+              0.001625,
+              0.003083
+            ],
+            "total_retrieval": [
+              44.287667,
+              45.327417,
+              43.338459,
+              42.46875,
+              67.930875
+            ]
+          },
+          "errors": []
+        }
+      ],
+      "aggregate": {
+        "quality": {
+          "citation_precision": null,
+          "coverage_at_20": 1.0,
+          "duplicate_ids_removed": 0.0,
+          "duplicate_rate_at_20": 0.014285714285714285,
+          "mrr_at_20": 1.0,
+          "ndcg_at_10": 0.990288531797431,
+          "no_answer_correct": null,
+          "recall_at_10": 1.0,
+          "recall_at_20": 1.0,
+          "recall_at_5": 1.0,
+          "support": {
+            "citation_precision": 0,
+            "coverage_at_20": 5,
+            "duplicate_ids_removed": 7,
+            "duplicate_rate_at_20": 7,
+            "mrr_at_20": 5,
+            "ndcg_at_10": 5,
+            "no_answer_correct": 0,
+            "recall_at_10": 5,
+            "recall_at_20": 5,
+            "recall_at_5": 5
+          },
+          "duplicate_ids_removed_total": 0
+        },
+        "stage_recall": {
+          "dense": 0.6333333333333333,
+          "sparse": 1.0,
+          "union": 1.0,
+          "fusion": 1.0,
+          "structural": 1.0,
+          "reranker": 1.0,
+          "final": 1.0
+        },
+        "performance": {
+          "latency_ms": {
+            "p50": 45.415458,
+            "p95": 74.8511793,
+            "p99": 165.45082299999956
+          },
+          "latency_p95_bootstrap": {
+            "estimate": 74.8511793,
+            "ci": [
+              65.55422499999999,
+              211.293958
+            ],
+            "confidence": 0.95,
+            "percentile": 0.95,
+            "samples": 10000,
+            "seed": 20260813,
+            "queries": 7,
+            "observations": 35,
+            "unit": "query_cluster"
+          },
+          "stage_latency_ms": {
+            "dense": {
+              "p50": 2.097917,
+              "p95": 3.935299999999993,
+              "p99": 7.3930349999999905
+            },
+            "diversity": {
+              "p50": 0.024167,
+              "p95": 0.030991099999999997,
+              "p99": 0.03371321999999999
+            },
+            "encode": {
+              "p50": 0.163042,
+              "p95": 0.23964579999999955,
+              "p99": 0.3670910599999999
+            },
+            "expand": {
+              "p50": 0.000625,
+              "p95": 0.001279199999999999,
+              "p99": 0.0016789399999999994
+            },
+            "fusion": {
+              "p50": 0.265125,
+              "p95": 0.7686542999999998,
+              "p99": 1.0302382199999989
+            },
+            "hydrate": {
+              "p50": 0.485583,
+              "p95": 0.6140999999999998,
+              "p99": 1.1230852199999977
+            },
+            "normalize": {
+              "p50": 0.011084,
+              "p95": 0.016512499999999982,
+              "p99": 0.02299043999999999
+            },
+            "rerank": {
+              "p50": 0.0,
+              "p95": 0.0,
+              "p99": 0.0
+            },
+            "sparse": {
+              "p50": 39.791417,
+              "p95": 69.4005044,
+              "p99": 155.20517521999955
+            },
+            "stitch": {
+              "p50": 0.001625,
+              "p95": 0.002849899999999999,
+              "p99": 0.0037159399999999966
+            },
+            "structural": {
+              "p50": 1.910042,
+              "p95": 2.3761580999999996,
+              "p99": 5.391227939999984
+            },
+            "total_retrieval": {
+              "p50": 45.327417,
+              "p95": 74.76898739999999,
+              "p99": 165.35866093999954
+            },
+            "union": {
+              "p50": 0.027042,
+              "p95": 0.0318912,
+              "p99": 0.041227059999999954
+            }
+          },
+          "qps": {
+            "qps": null,
+            "successful_qps_sample": 19.586113206002914,
+            "serial_attempt_rate_sample": 19.586113206002914,
+            "completed": 35,
+            "errors": 0,
+            "calls_including_errors": 35,
+            "error_rate": 0.0,
+            "elapsed_active_seconds": 1.7869803790000003,
+            "concurrency": 1,
+            "cache_mode": "warm",
+            "process_isolation": false,
+            "preregistered_window": false,
+            "claim_eligible": false,
+            "status": "non_claim",
+            "non_claim_reasons": [
+              "successful_calls_below_100",
+              "measurement_window_below_5_seconds",
+              "process_not_isolated",
+              "measurement_window_not_preregistered"
+            ],
+            "reason": "successful_calls_below_100;measurement_window_below_5_seconds;process_not_isolated;measurement_window_not_preregistered",
+            "measurement_window": "serial active calls in balanced interleaved order; not duration-controlled"
+          },
+          "cold_latency_ms": {
+            "status": "measured",
+            "cold_latency_ms": 64.32825,
+            "sample_count": 1,
+            "single_run": true,
+            "claim_eligible": false,
+            "comparable_across_systems": false,
+            "cache_mode": "best_effort_cold_before_warmup",
+            "reason": "single shared-backend observation; descriptive only",
+            "error_type": null
+          },
+          "memory": {
+            "rss_baseline_bytes": 80723968,
+            "rss_after_ingest_bytes": 103415808,
+            "rss_ingest_delta_bytes": 22691840,
+            "rss_peak_bytes": 109838336,
+            "rss_peak_delta_bytes": 29114368,
+            "scope": "benchmark Python process; ru_maxrss high-water mark",
+            "python_process_rss_peak_bytes": 109838336,
+            "postgres_server_rss_peak_bytes": null,
+            "shared_process": true,
+            "comparable_across_systems": false,
+            "comparison_reason": "systems share one Python process and ru_maxrss high-water state"
+          },
+          "storage": {
+            "status": "available",
+            "index_bytes": 109191168,
+            "size_per_chunk_bytes": 10919.1168,
+            "definition": "sum pg_total_relation_size for fixed rag3d_v2_* benchmark relations",
+            "size_per_chunk_definition": "index_bytes / ingested_chunks",
+            "hnsw_build_seconds": 0.9778889580047689,
+            "hnsw_build_status": "measured"
+          },
+          "ingest": {
+            "documents": 10000,
+            "chunks": 10000,
+            "seconds": 9.501849082997069,
+            "documents_per_second": 1052.4267342757885,
+            "chunks_per_second": 1052.4267342757885
+          }
+        },
+        "quality_gate": {
+          "status": "not_evaluated",
+          "claim_scope": "synthetic",
+          "reason": "synthetic calibration data cannot establish a global quality gain",
+          "duplicate_ids_removed_total": 0,
+          "stage_lineage_violations": 0
+        }
+      }
+    }
+  ],
+  "comparisons": [
+    {
+      "baseline": "legacy-pgvector",
+      "candidate": "v2-pgvector",
+      "paired_delta": {
+        "ndcg_at_10": {
+          "n_queries": 5,
+          "input_queries": 7,
+          "discarded_queries": 2,
+          "samples": 10000,
+          "seed": 20260813,
+          "confidence": 0.95,
+          "direction": "candidate_minus_baseline",
+          "improvement_direction": "higher_is_better",
+          "absolute_delta": 0.07901382112583866,
+          "absolute_ci": [
+            0.012588720303578493,
+            0.14543892194809882
+          ],
+          "relative_gain": 0.08670691746466545,
+          "relative_ci": [
+            0.012875854281227552,
+            0.17214770564199697
+          ],
+          "relative_defined_samples": 10000,
+          "relative_undefined_samples": 0
+        },
+        "recall_at_5": {
+          "n_queries": 5,
+          "input_queries": 7,
+          "discarded_queries": 2,
+          "samples": 10000,
+          "seed": 20260813,
+          "confidence": 0.95,
+          "direction": "candidate_minus_baseline",
+          "improvement_direction": "higher_is_better",
+          "absolute_delta": 0.1,
+          "absolute_ci": [
+            0.0,
+            0.30000000000000004
+          ],
+          "relative_gain": 0.11111111111111112,
+          "relative_ci": [
+            0.0,
+            0.4285714285714286
+          ],
+          "relative_defined_samples": 10000,
+          "relative_undefined_samples": 0
+        },
+        "recall_at_10": {
+          "n_queries": 5,
+          "input_queries": 7,
+          "discarded_queries": 2,
+          "samples": 10000,
+          "seed": 20260813,
+          "confidence": 0.95,
+          "direction": "candidate_minus_baseline",
+          "improvement_direction": "higher_is_better",
+          "absolute_delta": 0.0,
+          "absolute_ci": [
+            0.0,
+            0.0
+          ],
+          "relative_gain": 0.0,
+          "relative_ci": [
+            0.0,
+            0.0
+          ],
+          "relative_defined_samples": 10000,
+          "relative_undefined_samples": 0
+        },
+        "recall_at_20": {
+          "n_queries": 5,
+          "input_queries": 7,
+          "discarded_queries": 2,
+          "samples": 10000,
+          "seed": 20260813,
+          "confidence": 0.95,
+          "direction": "candidate_minus_baseline",
+          "improvement_direction": "higher_is_better",
+          "absolute_delta": 0.0,
+          "absolute_ci": [
+            0.0,
+            0.0
+          ],
+          "relative_gain": 0.0,
+          "relative_ci": [
+            0.0,
+            0.0
+          ],
+          "relative_defined_samples": 10000,
+          "relative_undefined_samples": 0
+        },
+        "mrr_at_20": {
+          "n_queries": 5,
+          "input_queries": 7,
+          "discarded_queries": 2,
+          "samples": 10000,
+          "seed": 20260813,
+          "confidence": 0.95,
+          "direction": "candidate_minus_baseline",
+          "improvement_direction": "higher_is_better",
+          "absolute_delta": 0.0,
+          "absolute_ci": [
+            0.0,
+            0.0
+          ],
+          "relative_gain": 0.0,
+          "relative_ci": [
+            0.0,
+            0.0
+          ],
+          "relative_defined_samples": 10000,
+          "relative_undefined_samples": 0
+        },
+        "coverage_at_20": {
+          "n_queries": 5,
+          "input_queries": 7,
+          "discarded_queries": 2,
+          "samples": 10000,
+          "seed": 20260813,
+          "confidence": 0.95,
+          "direction": "candidate_minus_baseline",
+          "improvement_direction": "higher_is_better",
+          "absolute_delta": 0.0,
+          "absolute_ci": [
+            0.0,
+            0.0
+          ],
+          "relative_gain": 0.0,
+          "relative_ci": [
+            0.0,
+            0.0
+          ],
+          "relative_defined_samples": 10000,
+          "relative_undefined_samples": 0
+        },
+        "duplicate_rate_at_20": {
+          "n_queries": 7,
+          "input_queries": 7,
+          "discarded_queries": 0,
+          "samples": 10000,
+          "seed": 20260813,
+          "confidence": 0.95,
+          "direction": "candidate_minus_baseline",
+          "improvement_direction": "lower_is_better",
+          "absolute_delta": 0.0,
+          "absolute_ci": [
+            -0.006015037593984963,
+            0.004511278195488723
+          ],
+          "relative_gain": -0.0,
+          "relative_ci": [
+            -0.5454545454545454,
+            0.3157894736842105
+          ],
+          "relative_defined_samples": 10000,
+          "relative_undefined_samples": 0
+        },
+        "median_query_latency_ms": {
+          "n_queries": 7,
+          "input_queries": 7,
+          "discarded_queries": 0,
+          "samples": 10000,
+          "seed": 20260813,
+          "confidence": 0.95,
+          "direction": "candidate_minus_baseline",
+          "improvement_direction": "lower_is_better",
+          "absolute_delta": -2.121988428571429,
+          "absolute_ci": [
+            -3.149619000000001,
+            -1.2355482857142854
+          ],
+          "relative_gain": 0.044601278817578166,
+          "relative_ci": [
+            0.02160825419629194,
+            0.10027952583561009
+          ],
+          "relative_defined_samples": 10000,
+          "relative_undefined_samples": 0
+        }
+      },
+      "claim": null
+    }
+  ],
+  "ann_validation": {
+    "pgvector": {
+      "status": "failed",
+      "reason": "ANN recall is below the preregistered threshold",
+      "k": 20,
+      "minimum_recall_at_k": 0.98,
+      "definition": "|ANN top-k intersect exact top-k| / k",
+      "snapshot_sha256": "3a3fcfddb3fd44e9b0d2dff51feb9200de1507418742a239d3e4430247e1312f",
+      "filters": {
+        "policy": "none",
+        "sha256": "30471b7f240ffbbbec18bcef8f94937b008aca0bf9da4677978e3265b7c77ac3"
+      },
+      "recall_at_k": 0.8857142857142858,
+      "support": 7,
+      "queries": [
+        {
+          "query_id": "calibration-exact-code",
+          "status": "passed",
+          "exact_count": 20,
+          "ann_count": 20,
+          "underfill": false,
+          "recall_at_k": 1.0,
+          "natural_plan": {
+            "hnsw_used": true,
+            "configured_search_mode": "ann",
+            "selected_mode": "ann"
+          }
+        },
+        {
+          "query_id": "calibration-topic-deadline",
+          "status": "passed",
+          "exact_count": 20,
+          "ann_count": 20,
+          "underfill": false,
+          "recall_at_k": 1.0,
+          "natural_plan": {
+            "hnsw_used": true,
+            "configured_search_mode": "ann",
+            "selected_mode": "ann"
+          }
+        },
+        {
+          "query_id": "calibration-hybrid-limit",
+          "status": "failed",
+          "exact_count": 20,
+          "ann_count": 20,
+          "underfill": false,
+          "recall_at_k": 0.95,
+          "natural_plan": {
+            "hnsw_used": true,
+            "configured_search_mode": "ann",
+            "selected_mode": "ann"
+          },
+          "reason": "recall_below_preregistered_threshold"
+        },
+        {
+          "query_id": "calibration-multifact",
+          "status": "failed",
+          "exact_count": 20,
+          "ann_count": 20,
+          "underfill": false,
+          "recall_at_k": 0.95,
+          "natural_plan": {
+            "hnsw_used": true,
+            "configured_search_mode": "ann",
+            "selected_mode": "ann"
+          },
+          "reason": "recall_below_preregistered_threshold"
+        },
+        {
+          "query_id": "calibration-duplicate",
+          "status": "passed",
+          "exact_count": 20,
+          "ann_count": 20,
+          "underfill": false,
+          "recall_at_k": 1.0,
+          "natural_plan": {
+            "hnsw_used": true,
+            "configured_search_mode": "ann",
+            "selected_mode": "ann"
+          }
+        },
+        {
+          "query_id": "calibration-empty",
+          "status": "failed",
+          "exact_count": 20,
+          "ann_count": 20,
+          "underfill": false,
+          "recall_at_k": 0.9,
+          "natural_plan": {
+            "hnsw_used": true,
+            "configured_search_mode": "ann",
+            "selected_mode": "ann"
+          },
+          "reason": "recall_below_preregistered_threshold"
+        },
+        {
+          "query_id": "calibration-no-answer",
+          "status": "failed",
+          "exact_count": 20,
+          "ann_count": 20,
+          "underfill": false,
+          "recall_at_k": 0.4,
+          "natural_plan": {
+            "hnsw_used": true,
+            "configured_search_mode": "ann",
+            "selected_mode": "ann"
+          },
+          "reason": "recall_below_preregistered_threshold"
+        }
+      ]
+    }
+  },
+  "claims": {
+    "quality_gain": null,
+    "meta_20_percent": "not_evaluated",
+    "reason": "runner output only; synthetic data cannot establish general improvement"
+  }
+}

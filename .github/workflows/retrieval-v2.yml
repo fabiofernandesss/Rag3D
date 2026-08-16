@@ -1,0 +1,89 @@
+name: Retrieval V2
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "feat/**"
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.6-pg16-bookworm
+        env:
+          POSTGRES_DB: rag3d_ci_test
+          POSTGRES_PASSWORD: ${{ github.run_id }}
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d rag3d_ci_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PYTHONPATH: .
+      PGPASSWORD: ${{ github.run_id }}
+      RAG3D_TEST_PG_DSN: postgresql://postgres@localhost:5432/rag3d_ci_test
+      RAG3D_TEST_PG_ALLOW_DESTRUCTIVE: "1"
+      PGCONNECT_TIMEOUT: "5"
+      PGOPTIONS: "-c statement_timeout=60000 -c lock_timeout=5000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install --upgrade pip
+      - run: python -m pip install ".[test]"
+      - name: Enable pgvector in the isolated CI database
+        run: >-
+          python -c "import os, psycopg;
+          connection=psycopg.connect(os.environ['RAG3D_TEST_PG_DSN'], autocommit=True);
+          connection.execute('CREATE EXTENSION IF NOT EXISTS vector');
+          connection.close()"
+      - run: pytest -q --cov=rag3d --cov-branch --cov-report=term
+      - run: python tests/test_smoke.py
+
+  node:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rag3d-js
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: rag3d-js/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  java:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: rag3d-java
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: mkdir -p target/classes
+      - name: Compile portable core and executable contracts
+        run: >-
+          javac -d target/classes
+          src/main/java/io/rag3d/*.java
+          src/main/java/io/rag3d/core/*.java
+          src/test/java/ParityCheck.java
+          src/test/java/io/rag3d/core/PgHoloStoreContractCheck.java
+      - run: java -cp target/classes ParityCheck
+      - run: java -cp target/classes io.rag3d.core.PgHoloStoreContractCheck

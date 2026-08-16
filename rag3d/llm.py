@@ -18,6 +18,29 @@ import urllib.request
 from typing import Callable, List, Optional
 
 Message = dict  # {"role": "user"|"assistant", "content": str}
+MAX_LLM_RESPONSE_BYTES = 1024 * 1024
+
+
+def validate_llm_text(
+    value: str, maximum: int = MAX_LLM_RESPONSE_BYTES
+) -> str:
+    """Validate an untrusted provider/callable response before further work."""
+    if not isinstance(value, str):
+        raise TypeError("LLM text must be a string")
+    # Character preflight prevents an unbounded UTF-8 allocation. A surviving
+    # value allocates at most four times ``maximum`` for the byte check.
+    if len(value) > maximum or len(value.encode("utf-8")) > maximum:
+        raise ValueError(
+            f"LLM text exceeds maximum of {maximum} UTF-8 bytes"
+        )
+    return value
+
+
+def _read_bounded_response(response, maximum: int = MAX_LLM_RESPONSE_BYTES) -> bytes:
+    payload = response.read(maximum + 1)
+    if len(payload) > maximum:
+        raise RuntimeError("LLM response exceeds size limit")
+    return payload
 
 
 class LLM:
@@ -50,13 +73,13 @@ def _post_json(url: str, headers: dict, payload: dict, timeout: int = 120) -> di
         req = urllib.request.Request(url, data=body, headers=headers, method="POST")
         try:
             with urllib.request.urlopen(req, timeout=timeout) as resp:
-                return json.loads(resp.read().decode("utf-8"))
+                return json.loads(_read_bounded_response(resp).decode("utf-8"))
         except urllib.error.HTTPError as e:
             last_err = e
             if e.code in (429, 500, 502, 503, 529) and attempt < 2:
                 time.sleep(2.0 * (attempt + 1))
                 continue
-            detail = e.read().decode("utf-8", "replace")[:500]
+            detail = e.read(501).decode("utf-8", "replace")[:500]
             raise RuntimeError(f"LLM HTTP {e.code}: {detail}") from e
         except urllib.error.URLError as e:
             last_err = e
@@ -162,7 +185,7 @@ def make_llm(provider: str = "auto", model: str = "") -> LLM:
         first = ""
         try:
             with urllib.request.urlopen("http://localhost:11434/api/tags", timeout=2) as r:
-                tags = json.loads(r.read().decode())
+                tags = json.loads(_read_bounded_response(r).decode())
                 if tags.get("models"):
                     first = tags["models"][0]["name"]
         except Exception:

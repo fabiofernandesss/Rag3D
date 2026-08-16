@@ -32,8 +32,13 @@ clássico; com 1, interferência plena. RRF incluído como linha de base.
 from __future__ import annotations
 
 import math
+from collections.abc import Sized
+from itertools import islice
+from numbers import Integral, Real
 from dataclasses import dataclass, field
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Mapping, Sequence, Tuple
+
+from .backend import DEFAULT_RETRIEVAL_LIMITS
 
 Ranking = List[Tuple[int, float]]  # [(chunk_id, score), ...] em ordem decrescente
 
@@ -48,15 +53,129 @@ class FusedHit:
     channels: List[str] = field(default_factory=list)            # canais que acharam o doc
 
 
+def _validate_top_k(top_k: int) -> None:
+    if isinstance(top_k, bool) or not isinstance(top_k, Integral):
+        raise TypeError("top_k must be an integer, not bool")
+    if top_k < 0 or top_k > DEFAULT_RETRIEVAL_LIMITS.max_pool:
+        raise ValueError(
+            f"top_k must be between 0 and {DEFAULT_RETRIEVAL_LIMITS.max_pool}"
+        )
+
+
+def _validate_unit_interval(name: str, value: float) -> float:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise TypeError(f"{name} must be a real number, not bool")
+    normalized = float(value)
+    if not math.isfinite(normalized) or not 0.0 <= normalized <= 1.0:
+        raise ValueError(f"{name} must be finite and between 0 and 1")
+    return normalized
+
+
+def _validated_channels(
+    channels: Mapping[str, Sequence[Tuple[int, float]]], *, deduplicate: bool = True
+) -> Dict[str, Ranking]:
+    """Validate rankings and keep only the first occurrence of each document."""
+    channel_items = _bounded_mapping_items(channels, "channels")
+    out: Dict[str, Ranking] = {}
+    for name, ranking in channel_items:
+        if not isinstance(name, str) or not name:
+            raise ValueError("channel name must be a non-empty string")
+        if isinstance(ranking, (str, bytes)):
+            raise TypeError(f"ranking for channel {name!r} must be a sequence")
+        maximum = DEFAULT_RETRIEVAL_LIMITS.max_channel_k
+        if isinstance(ranking, Sized) and len(ranking) > maximum:
+            raise ValueError(
+                f"ranking for channel {name!r} exceeds maximum of {maximum}"
+            )
+        seen = set()
+        clean: Ranking = []
+        for item_count, item in enumerate(ranking, start=1):
+            if item_count > maximum:
+                raise ValueError(
+                    f"ranking for channel {name!r} exceeds maximum of {maximum}"
+                )
+            if not isinstance(item, (tuple, list)) or len(item) != 2:
+                raise TypeError(f"ranking item for channel {name!r} must be (id, score)")
+            cid, score = item
+            if isinstance(cid, bool) or not isinstance(cid, Integral):
+                raise TypeError("chunk id must be an integer, not bool")
+            if isinstance(score, bool) or not isinstance(score, Real):
+                raise TypeError("ranking score must be a real number, not bool")
+            value = float(score)
+            if not math.isfinite(value):
+                raise ValueError("ranking score must be finite")
+            normalized_id = int(cid)
+            if deduplicate and normalized_id in seen:
+                continue
+            seen.add(normalized_id)
+            clean.append((normalized_id, value))
+        out[name] = clean
+    return out
+
+
+def _validated_weights(weights: Mapping[str, float]) -> Dict[str, float]:
+    weight_items = _bounded_mapping_items(weights, "weights")
+    out: Dict[str, float] = {}
+    for name, weight in weight_items:
+        if isinstance(weight, bool) or not isinstance(weight, Real):
+            raise TypeError(f"weight for channel {name!r} must be a real number, not bool")
+        value = float(weight)
+        if not math.isfinite(value) or value < 0.0:
+            raise ValueError(f"weight for channel {name!r} must be finite and non-negative")
+        out[name] = value
+    return out
+
+
+def _bounded_mapping_items(
+    value: Mapping[str, object], label: str
+) -> List[Tuple[str, object]]:
+    """Read a channel-shaped mapping through the shared small-channel cap."""
+
+    if not isinstance(value, Mapping):
+        raise TypeError(f"{label} must be a mapping")
+    maximum = DEFAULT_RETRIEVAL_LIMITS.max_fusion_channels
+    try:
+        if len(value) > maximum:
+            raise ValueError(f"{label} exceed maximum of {maximum}")
+    except ValueError:
+        raise
+    except Exception:
+        raise ValueError(f"{label} have invalid cardinality") from None
+    try:
+        items = list(islice(value.items(), maximum + 1))
+    except Exception:
+        raise ValueError(f"{label} contain invalid entries") from None
+    if len(items) > maximum:
+        raise ValueError(f"{label} exceed maximum of {maximum}")
+    return items
+
+
 def _minmax(ranking: Ranking) -> Dict[int, float]:
     """Normaliza pontuações do canal para [0,1] dentro do pool de candidatos."""
     if not ranking:
         return {}
     vals = [s for _, s in ranking]
     lo, hi = min(vals), max(vals)
-    if hi - lo < 1e-12:
+    raw_span = hi - lo
+    # Preserve the historical Python/JS/Java near-flat rule.  It avoids
+    # amplifying floating-point noise into a full [0, 1] score spread.
+    if raw_span < 1e-12:
         return {cid: 1.0 for cid, _ in ranking}
-    return {cid: (s - lo) / (hi - lo) for cid, s in ranking}
+    # Subtrair extremos finitos diretamente pode transbordar
+    # (por exemplo, 1e308 - -1e308). Escalar primeiro mantém o intervalo em
+    # [-1, 1] e torna a subtração segura.
+    scale = max(abs(lo), abs(hi), 1.0)
+    lo_scaled = lo / scale
+    span = hi / scale - lo_scaled
+    if not math.isfinite(span) or span <= 0.0:
+        raise ValueError("quantum normalization produced a non-finite span")
+    normalized: Dict[int, float] = {}
+    for cid, score in ranking:
+        value = (score / scale - lo_scaled) / span
+        if not math.isfinite(value):
+            raise ValueError("quantum normalization produced a non-finite score")
+        normalized[cid] = max(0.0, min(1.0, value))
+    return normalized
 
 
 def _phases(ranking: Ranking) -> Dict[int, float]:
@@ -81,8 +200,8 @@ def coherence(norm_scores: Dict[int, float]) -> float:
     pesar menos na superposição; um canal puro (kappa ~ 1) deve pesar mais.
 
     EXPERIMENTAL — desligado por padrão (coherence_strength = 0). Honestidade:
-    (1) Tr(rho^2) numa rho diagonal é exatamente a entropia de Rényi-2 —
-        "pureza" é entropia com outro nome, não um conceito novo;
+    (1) Tr(rho^2) é a pureza e determina monotonicamente a entropia de
+        Rényi-2 por H2 = -log Tr(rho^2); não são a mesma quantidade;
     (2) a literatura de QPP mostra que decisão de pontuação prediz bem a
         DIFICULDADE da consulta e mal QUAL canal está certo (~0.09 de
         correlação) — um canal pode estar decidido e errado;
@@ -125,6 +244,15 @@ def quantum_fuse(
     coherence_strength: float = 0.0,
 ) -> List[FusedHit]:
     """Superposição dos três eixos com interferência entre canais."""
+    _validate_top_k(top_k)
+    if top_k == 0:
+        return []
+    channels = _validated_channels(channels)
+    weights = _validated_weights(weights)
+    interference_strength = _validate_unit_interval(
+        "interference_strength", interference_strength
+    )
+    coherence_strength = _validate_unit_interval("coherence_strength", coherence_strength)
     norm = {name: _minmax(r) for name, r in channels.items()}
     phase = {name: _phases(r) for name, r in channels.items()}
     weights = _coherent_weights(weights, norm, coherence_strength)
@@ -144,16 +272,36 @@ def quantum_fuse(
             if s is None or s <= 0.0:
                 continue
             per_channel[name] = s
-            amps.append((name, math.sqrt(weights.get(name, 1.0) * s), phase[name][cid]))
+            weighted_score = weights.get(name, 1.0) * s
+            if not math.isfinite(weighted_score) or weighted_score < 0.0:
+                raise ValueError("quantum fusion produced a non-finite weighted score")
+            amplitude = math.sqrt(weighted_score)
+            if not math.isfinite(amplitude):
+                raise ValueError("quantum fusion produced a non-finite amplitude")
+            amps.append((name, amplitude, phase[name][cid]))
 
-        classical = sum(a * a for _, a, _ in amps)
+        classical = 0.0
+        for _, amplitude, _ in amps:
+            term = amplitude * amplitude
+            if not math.isfinite(term):
+                raise ValueError("quantum fusion produced a non-finite classical term")
+            classical += term
+            if not math.isfinite(classical):
+                raise ValueError("quantum fusion produced a non-finite classical score")
         interf = 0.0
         for i in range(len(amps)):
             for j in range(i + 1, len(amps)):
                 _, ai, pi_ = amps[i]
                 _, aj, pj = amps[j]
-                interf += 2.0 * ai * aj * math.cos(pi_ - pj)
+                cross = 2.0 * ai * aj * math.cos(pi_ - pj)
+                if not math.isfinite(cross):
+                    raise ValueError("quantum fusion produced non-finite interference")
+                interf += cross
+                if not math.isfinite(interf):
+                    raise ValueError("quantum fusion produced non-finite interference")
         score = classical + interference_strength * interf
+        if not math.isfinite(score):
+            raise ValueError("quantum fusion produced a non-finite score")
         hits.append(
             FusedHit(
                 chunk_id=cid,
@@ -179,12 +327,31 @@ def rrf_fuse(
     rrf_k: int = 60,
 ) -> List[FusedHit]:
     """Reciprocal Rank Fusion clássico — linha de base para comparação."""
+    _validate_top_k(top_k)
+    if isinstance(rrf_k, bool) or not isinstance(rrf_k, Integral):
+        raise TypeError("rrf_k must be an integer, not bool")
+    if not 1 <= rrf_k <= DEFAULT_RETRIEVAL_LIMITS.max_rrf_k:
+        raise ValueError(
+            "rrf_k must be between 1 and "
+            f"{DEFAULT_RETRIEVAL_LIMITS.max_rrf_k}"
+        )
+    if top_k == 0:
+        return []
+    channels = _validated_channels(channels, deduplicate=False)
+    weights = _validated_weights(weights)
     scores: Dict[int, float] = {}
     found: Dict[int, List[str]] = {}
     for name, ranking in channels.items():
         w = weights.get(name, 1.0)
+        seen = set()
         for rank, (cid, _) in enumerate(ranking):
-            scores[cid] = scores.get(cid, 0.0) + w / (rrf_k + rank + 1)
+            if cid in seen:
+                continue
+            seen.add(cid)
+            updated_score = scores.get(cid, 0.0) + w / (rrf_k + rank + 1)
+            if not math.isfinite(updated_score):
+                raise ValueError("RRF fusion produced a non-finite score")
+            scores[cid] = updated_score
             found.setdefault(cid, []).append(name)
     ranked = sorted(scores.items(), key=lambda x: (-x[1], x[0]))[:top_k]
     return [
@@ -202,13 +369,40 @@ def fuse(
     rrf_k: int = 60,
     coherence_strength: float = 0.0,
 ) -> List[FusedHit]:
-    names = list(channels.keys())
-    wmap = {n: float(w) for n, w in zip(names, weights)}
-    if coherence_strength > 0.0:
-        wmap = _coherent_weights(wmap, {n: _minmax(r) for n, r in channels.items()}, coherence_strength)
+    _validate_top_k(top_k)
+    if not isinstance(method, str) or method not in {"rrf", "quantum"}:
+        raise ValueError("method must be 'rrf' or 'quantum'")
+    names = [name for name, _ranking in _bounded_mapping_items(channels, "channels")]
+    if isinstance(weights, (str, bytes)) or not isinstance(weights, Sized):
+        raise TypeError("weights must be a sized iterable")
+    if len(weights) != len(names):
+        raise ValueError("weights must contain exactly one value per channel")
+    try:
+        weight_values = list(islice(iter(weights), len(names) + 1))
+    except Exception:
+        raise ValueError("weights contain invalid entries") from None
+    if len(weight_values) != len(names):
+        raise ValueError("weights must contain exactly one value per channel")
+    wmap = _validated_weights({n: w for n, w in zip(names, weight_values)})
     if method == "rrf":
+        coherence_strength = _validate_unit_interval(
+            "coherence_strength", coherence_strength
+        )
+        if coherence_strength > 0.0:
+            validated = _validated_channels(channels)
+            wmap = _coherent_weights(
+                wmap,
+                {name: _minmax(ranking) for name, ranking in validated.items()},
+                coherence_strength,
+            )
         return rrf_fuse(channels, wmap, top_k, rrf_k=rrf_k)
-    return quantum_fuse(channels, wmap, top_k, interference_strength=interference_strength)
+    return quantum_fuse(
+        channels,
+        wmap,
+        top_k,
+        interference_strength=interference_strength,
+        coherence_strength=coherence_strength,
+    )
 
 
 # ---------------------------------------------- seleção fermiônica (DPP) ---
@@ -226,9 +420,11 @@ def fuse(
 # idênticos são duas partículas no mesmo estado: o determinante zera —
 # EXCLUSÃO DE PAULI. Redundância é proibida por construção, não por heurística.
 #
-# Isto é exatamente um Determinantal Point Process (Kulesza & Taskar), e o
-# argmax é obtido pelo guloso com atualização de Cholesky em O(k²N)
-# (Chen et al. 2018). O ganho de cada candidato é combinado em log:
+# O determinante corresponde ao objetivo de um Determinantal Point Process
+# (Kulesza & Taskar). A seleção abaixo é uma heurística gulosa com atualização
+# de Cholesky. O custo inclui O(NkD) para similaridades e O(Nk²) para as
+# atualizações; ela aproxima, mas não garante, o ótimo global. O ganho
+# de cada candidato é combinado em log:
 #
 #     ganho(i) = theta * 2*log(relevância_i) + (1-theta) * log(volume residual_i)
 #
@@ -242,7 +438,7 @@ def fermionic_select(
     top_k: int,
     diversity: float = 0.0,
 ) -> List[int]:
-    """Escolhe k ids maximizando relevância × volume (det de Slater / MAP-DPP).
+    """Aproxima k ids por relevância × volume (determinante de Slater / DPP).
 
     items: [(id, relevância)] já ordenado por relevância desc.
     vectors: id -> vetor denso (norma 1). Id sem vetor é tratado como

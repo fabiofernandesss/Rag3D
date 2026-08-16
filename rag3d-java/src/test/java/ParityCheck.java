@@ -1,4 +1,5 @@
 import io.rag3d.core.*;
+import io.rag3d.Rag3D;
 import java.util.*;
 
 /**
@@ -22,6 +23,13 @@ public class ParityCheck {
     }
 
     public static void main(String[] args) {
+        try {
+            Rag3D.validateQuery("😀".repeat(16385));
+            throw new AssertionError("oversized UTF-8 query must be rejected");
+        } catch (IllegalArgumentException expected) {
+            if (!expected.getMessage().contains("65536")) throw expected;
+        }
+
         String[] texts = {
             "O contrato de aluguel vence em 15 de março de 2027.",
             "会议将于星期五上午十点在北京举行。",
@@ -52,6 +60,42 @@ public class ParityCheck {
         ch.put("b", List.of(new Fusion.Scored(1, 0.85), new Fusion.Scored(3, 0.2)));
         ch.put("c", List.of(new Fusion.Scored(1, 0.7), new Fusion.Scored(2, 0.05)));
         Map<String, Double> w = Map.of("a", 1.0, "b", 1.0, "c", 1.0);
+
+        Map<String, List<Fusion.Scored>> nearFlat = Map.of(
+            "a", List.of(new Fusion.Scored(2, 1.0), new Fusion.Scored(1, 1.0 - 5e-13))
+        );
+        List<Fusion.Hit> nearFlatHits = Fusion.quantumFuse(
+            nearFlat, Map.of("a", 1.0), 2, 1.0
+        );
+        if (nearFlatHits.get(0).chunkId != 1 || nearFlatHits.get(1).chunkId != 2) {
+            throw new AssertionError("near-flat quantum channel must tie-break by id");
+        }
+
+        Map<String, List<Fusion.Scored>> extreme = Map.of(
+            "a", List.of(new Fusion.Scored(1, 1e308), new Fusion.Scored(2, -1e308))
+        );
+        for (Fusion.Hit hit : Fusion.quantumFuse(extreme, Map.of("a", 1.0), 2, 1.0)) {
+            if (!Double.isFinite(hit.score)) {
+                throw new AssertionError("finite extreme scores must stay finite");
+            }
+        }
+
+        Map<String, List<Fusion.Scored>> duplicateRrf = new LinkedHashMap<>();
+        duplicateRrf.put("a", List.of(
+            new Fusion.Scored(1, 0.9),
+            new Fusion.Scored(1, 0.8),
+            new Fusion.Scored(2, 0.7)
+        ));
+        duplicateRrf.put("b", List.of(new Fusion.Scored(2, 0.9)));
+        List<Fusion.Hit> duplicateRrfHits = Fusion.rrfFuse(
+            duplicateRrf, Map.of("a", 1.0, "b", 1.0), 2, 60
+        );
+        if (duplicateRrfHits.get(0).chunkId != 2
+                || duplicateRrfHits.get(1).chunkId != 1
+                || duplicateRrfHits.get(1).channels.size() != 1) {
+            throw new AssertionError("RRF must count only the first ID occurrence per channel");
+        }
+
         out.append("],\"fusion\":[");
         List<Fusion.Hit> hits = Fusion.quantumFuse(ch, w, 5, 1.0);
         for (int i = 0; i < hits.size(); i++) {

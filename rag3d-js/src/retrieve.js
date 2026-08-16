@@ -7,6 +7,18 @@ const SYS_EXPAND =
   "aparecem no documento (sinônimos, palavras-chave, números de seção/item, siglas expandidas). " +
   "Uma variação por linha, sem numeração, sem explicações.";
 
+const MAX_QUERY_BYTES = 64 * 1024;
+
+export function validateQuery(query) {
+  if (typeof query !== "string") throw new TypeError("query must be a string");
+  // UTF-16 length is an O(1) preflight; only a bounded value reaches the
+  // UTF-8 encoder, so hostile input cannot create an unbounded byte copy.
+  if (query.length > MAX_QUERY_BYTES || new TextEncoder().encode(query).byteLength > MAX_QUERY_BYTES) {
+    throw new RangeError(`query exceeds maximum of ${MAX_QUERY_BYTES} UTF-8 bytes`);
+  }
+  return query;
+}
+
 export class TriRetriever {
   constructor(store, encoder, cfg, reranker = null, llm = null) {
     this.store = store; this.encoder = encoder; this.cfg = cfg;
@@ -25,6 +37,7 @@ export class TriRetriever {
         SYS_EXPAND.replace("{N}", this.cfg.expandQueryMax || 3),
         [{ role: "user", content: query }], 200
       );
+      validateQuery(raw);
       variants = raw.split("\n").map((s) => s.trim()).filter(Boolean).slice(0, this.cfg.expandQueryMax || 3);
     } catch { /* acessório */ }
     if (!variants.length) return this.encoder.encode([query], true)[0];
@@ -103,6 +116,7 @@ export class TriRetriever {
   }
 
   async search(query, topK = null, channelK = null) {
+    query = validateQuery(query);
     topK = topK || this.cfg.topK;
     channelK = channelK || this.cfg.channelK;
     const q = await this._expandedQueryVec(query);
@@ -137,7 +151,7 @@ export class TriRetriever {
     }
     if (doRerank) fused = await this.reranker.rerank(query, fused, doDiv ? this.cfg.diversityPool : topK);
 
-    // seleção fermiônica (MAP-DPP): escolhe o CONJUNTO de k, sem redundância
+    // greedy DPP: aproxima um conjunto de k com relevância e diversidade
     if (doDiv && fused.length > topK) {
       const pool = fused.slice(0, this.cfg.diversityPool);
       const vecs = await this.store.denseVecs(pool.map((h) => h.id));

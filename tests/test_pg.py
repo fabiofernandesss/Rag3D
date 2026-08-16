@@ -1,12 +1,18 @@
-"""Suíte do backend Postgres holográfico (sem pgvector).
+"""Suíte opt-in do backend Postgres holográfico (sem pgvector).
 
-Requer container rodando:
+Requer um banco descartável cujo nome contenha ``test`` e dois guards:
+
+  export RAG3D_TEST_PG_DSN=postgresql://postgres:rag3d@localhost:5433/rag3d_test
+  export RAG3D_TEST_PG_ALLOW_DESTRUCTIVE=1
+
+Exemplo de container:
   docker run -d --name rag3d-pg -e POSTGRES_PASSWORD=rag3d \
-    -e POSTGRES_DB=rag3d -p 5433:5432 postgres:16
+    -e POSTGRES_DB=rag3d_test -p 5433:5432 postgres:16
 """
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tempfile
 import time
@@ -21,8 +27,55 @@ from rag3d.engine import TriRag
 from rag3d.holo import HOLO_BITS, Holographer
 from rag3d.llm import NoLLM
 
-DSN = os.environ.get("RAG3D_PG", "postgresql://postgres:rag3d@localhost:5433/rag3d")
 FAILS = []
+
+
+def _test_dsn() -> str:
+    """Return only the dedicated integration-test variable."""
+    return os.environ.get("RAG3D_TEST_PG_DSN", "").strip()
+
+
+def _database_name(dsn: str) -> str:
+    try:
+        from psycopg.conninfo import conninfo_to_dict
+
+        return str(conninfo_to_dict(dsn).get("dbname", ""))
+    except Exception:
+        return ""
+
+
+def _has_test_database_token(database: str) -> bool:
+    return bool(re.search(r"(?:^|[_-])test(?:$|[_-])", database.casefold()))
+
+
+def _safe_test_target() -> bool:
+    dsn = _test_dsn()
+    allowed = os.environ.get("RAG3D_TEST_PG_ALLOW_DESTRUCTIVE") == "1"
+    database = _database_name(dsn).casefold()
+    return bool(dsn and allowed and _has_test_database_token(database))
+
+
+def _require_safe_test_target() -> str:
+    if not _safe_test_target():
+        raise RuntimeError(
+            "refusing destructive PostgreSQL test: configure a test-only "
+            "RAG3D_TEST_PG_DSN whose database name has a delimited 'test' token and set "
+            "RAG3D_TEST_PG_ALLOW_DESTRUCTIVE=1"
+        )
+    return _test_dsn()
+
+
+def _skip_unless_safe() -> None:
+    if _safe_test_target():
+        return
+    try:
+        import pytest
+    except ImportError as exc:  # pragma: no cover - script mode checks in main
+        raise RuntimeError("PostgreSQL integration target is not test-only") from exc
+    pytest.skip(
+        "requires test-only RAG3D_TEST_PG_DSN, database name with a delimited "
+        "'test' token, and RAG3D_TEST_PG_ALLOW_DESTRUCTIVE=1"
+    )
 
 
 def check(name, cond, detail=""):
@@ -33,18 +86,22 @@ def check(name, cond, detail=""):
 
 
 def wipe(rag: TriRag):
+    _require_safe_test_target()
+    current_database = rag.store.db.execute("SELECT current_database()").fetchone()[0]
+    if not _has_test_database_token(str(current_database)):
+        raise RuntimeError("refusing destructive PostgreSQL test on a non-test database")
     with rag.store.db.cursor() as cur:
         cur.execute("TRUNCATE holo_grams, holo_spectrum, holo_docs, holo_meta")
     rag.store.db.commit()
-    rag.store._n_grams_cache = None
 
 
 def make_rag(**over) -> TriRag:
+    dsn = _require_safe_test_target()
     cfg = TriRagConfig()
     cfg.data_dir = Path(tempfile.mkdtemp())
     cfg.encoder = "fallback"
     cfg.contextual_enrich = False
-    cfg.pg_dsn = DSN
+    cfg.pg_dsn = dsn
     cfg.small_corpus_tokens = 0
     for k, v in over.items():
         setattr(cfg, k, v)
@@ -77,6 +134,7 @@ def test_holographer():
 
 
 def test_pg_end_to_end():
+    _skip_unless_safe()
     print("\n== Postgres puro: ingestão + 3 eixos + fusão ==")
     rag = make_rag()
     wipe(rag)
@@ -96,6 +154,7 @@ def test_pg_end_to_end():
 
 
 def test_pg_memory_and_persistence():
+    _skip_unless_safe()
     print("\n== Postgres: memória + persistência entre conexões ==")
     rag = make_rag(memory_budget_tokens=300)
     wipe(rag)
@@ -115,6 +174,7 @@ def test_pg_memory_and_persistence():
 
 
 def test_pg_scale_and_latency(n_docs: int = 400):
+    _skip_unless_safe()
     print(f"\n== Postgres: escala ({n_docs} hologramas) + latência ==")
     rag = make_rag()
     wipe(rag)
@@ -146,9 +206,17 @@ def test_pg_scale_and_latency(n_docs: int = 400):
 
 if __name__ == "__main__":
     test_holographer()
+    if not _safe_test_target():
+        print(
+            "\nPostgreSQL de teste não autorizado — defina "
+            "RAG3D_TEST_PG_DSN para um banco com 'test' no nome e "
+            "RAG3D_TEST_PG_ALLOW_DESTRUCTIVE=1."
+        )
+        sys.exit(2)
+    dsn = _require_safe_test_target()
     try:
         import psycopg
-        psycopg.connect(DSN, connect_timeout=3).close()
+        psycopg.connect(dsn, connect_timeout=3).close()
     except Exception as e:
         print(f"\nPostgres indisponível ({e}) — suba o container e rode de novo.")
         sys.exit(2)

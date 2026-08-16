@@ -118,7 +118,7 @@ def test_quantum_fusion_math():
 
 
 def test_fermionic_and_coherence():
-    print("\n== seleção fermiônica (MAP-DPP) + coerência ==")
+    print("\n== diversidade greedy DPP + coerência ==")
     import numpy as np
     from rag3d.fusion import coherence, fermionic_select
 

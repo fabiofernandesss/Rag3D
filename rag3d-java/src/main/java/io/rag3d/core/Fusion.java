@@ -3,6 +3,7 @@ package io.rag3d.core;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,8 +21,8 @@ import java.util.Set;
  * <p>FERMIÔNICA (qual conjunto): o conjunto de k documentos é antissimetrizado
  * (determinante de Slater), |psi_S|^2 = det(Gram) = Vol^2. Dois documentos
  * idênticos = duas partículas no mesmo estado -> determinante zera (exclusão de
- * Pauli). É um DPP; argmax pelo guloso com Cholesky incremental O(k^2 N)
- * (Chen et al., NeurIPS 2018).
+ * Pauli). É um DPP; o guloso aproxima o objetivo log-det com Cholesky
+ * incremental O(k^2 N), sem resolver o MAP global (Chen et al., NeurIPS 2018).
  */
 public final class Fusion {
 
@@ -55,7 +56,13 @@ public final class Fusion {
         if (hi - lo < 1e-12) {
             for (Scored s : ranking) m.put(s.id(), 1.0);
         } else {
-            for (Scored s : ranking) m.put(s.id(), (s.score() - lo) / (hi - lo));
+            // Scale before subtracting so opposite finite extremes do not overflow.
+            double scale = Math.max(Math.max(Math.abs(lo), Math.abs(hi)), 1.0);
+            double loScaled = lo / scale;
+            double span = hi / scale - loScaled;
+            for (Scored s : ranking) {
+                m.put(s.id(), (s.score() / scale - loScaled) / span);
+            }
         }
         return m;
     }
@@ -119,8 +126,10 @@ public final class Fusion {
         for (Map.Entry<String, List<Scored>> e : channels.entrySet()) {
             double w = weights.getOrDefault(e.getKey(), 1.0);
             List<Scored> r = e.getValue();
+            Set<Long> seen = new HashSet<>();
             for (int rank = 0; rank < r.size(); rank++) {
                 long cid = r.get(rank).id();
+                if (!seen.add(cid)) continue;
                 scores.merge(cid, w / (rrfK + rank + 1), Double::sum);
                 found.computeIfAbsent(cid, k -> new ArrayList<>()).add(e.getKey());
             }
@@ -134,8 +143,9 @@ public final class Fusion {
     }
 
     /**
-     * Seleção fermiônica (MAP-DPP): escolhe o CONJUNTO maximizando
-     * relevância x volume. Guloso com Cholesky incremental — espelha
+     * Greedy DPP: aproxima um conjunto com relevância e diversidade;
+     * não é solução MAP global exata. Equilibra relevância x volume com
+     * Cholesky incremental — espelha
      * fermionic_select/fermionicSelect bit a bit.
      *
      * @param items     pares (id, relevância) em ordem decrescente

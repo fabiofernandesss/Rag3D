@@ -1,7 +1,7 @@
 {
   "name": "rag3d",
   "version": "0.1.0",
-  "description": "RAG3D — RAG tridimensional: 3 eixos, fusão por interferência quântica, Hologramas Textuais (vetores em Postgres puro, sem pgvector), memória infinita, qualquer LLM. Índice compatível bit a bit com a versão Python.",
+  "description": "RAG3D — RAG tridimensional com índice Hash holográfico legado compatível com Python e Java.",
   "author": "Fabio Fernandes Jesus <fabiofernandesjesus@hotmail.com>",
   "license": "MIT",
   "homepage": "https://github.com/fabiofernandesss/Rag3D",
