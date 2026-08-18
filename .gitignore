@@ -1,6 +1,7 @@
 # --- SEGREDOS: nunca commitar ---
-# a launch.json local contém a chave da API (DeepSeek). Use launch.json.example.
-.claude/launch.json
+# config local do editor e chaves de API. Use .env.example como referência.
+.claude/
+CLAUDE.md
 .env
 .env.local
 *.key

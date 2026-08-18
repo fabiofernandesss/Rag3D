@@ -1,3 +1,13 @@
+```
+       ██████╗   █████╗   ██████╗  ██████╗ ██████╗
+       ██╔══██╗ ██╔══██╗ ██╔════╝  ╚════██╗██╔══██╗
+       ██████╔╝ ███████║ ██║  ███╗  █████╔╝██║  ██║
+       ██╔══██╗ ██╔══██║ ██║   ██║  ╚═══██╗██║  ██║
+       ██║  ██║ ██║  ██║ ╚██████╔╝ ██████╔╝██████╔╝
+       ╚═╝  ╚═╝ ╚═╝  ╚═╝  ╚═════╝  ╚═════╝ ╚═════╝
+            r a g   t r i d i m e n s i o n a l  ·  △
+```
+
 <div align="center">
 
 <img src="assets/rag3d-hero.svg" alt="RAG3D: a pergunta é projetada em três eixos — semântico, léxico e estrutural — que se fundem por interferência e devolvem um conjunto sem duplicatas" width="100%">
