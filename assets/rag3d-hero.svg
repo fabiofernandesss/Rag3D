@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 300" width="860" height="300" role="img" aria-label="RAG3D: a pergunta é projetada em três eixos — semântico, léxico e estrutural — que se fundem por interferência e devolvem o conjunto final">
+  <defs>
+    <linearGradient id="sem" x1="0" x2="1">
+      <stop offset="0" stop-color="#7c5cff" stop-opacity=".25"/><stop offset="1" stop-color="#7c5cff"/>
+    </linearGradient>
+    <linearGradient id="lex" x1="0" x2="1">
+      <stop offset="0" stop-color="#2f81f7" stop-opacity=".25"/><stop offset="1" stop-color="#2f81f7"/>
+    </linearGradient>
+    <linearGradient id="est" x1="0" x2="1">
+      <stop offset="0" stop-color="#2ea043" stop-opacity=".25"/><stop offset="1" stop-color="#2ea043"/>
+    </linearGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="3.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+
+  <rect width="860" height="300" rx="16" fill="#0d1117"/>
+
+  <!-- pergunta -->
+  <g transform="translate(28,132)">
+    <rect width="112" height="42" rx="10" fill="#161b22" stroke="#30363d"/>
+    <text x="56" y="26" font-family="ui-sans-serif,system-ui,sans-serif" font-size="14" fill="#e6edf3" text-anchor="middle">pergunta</text>
+    <circle cx="112" cy="21" r="4" fill="#7c5cff">
+      <animate attributeName="opacity" values="1;.2;1" dur="2s" repeatCount="indefinite"/>
+    </circle>
+  </g>
+
+  <!-- três eixos: linhas com fluxo animado -->
+  <g fill="none" stroke-width="3" stroke-linecap="round">
+    <path d="M148 153 C 230 153, 240 66, 322 66" stroke="url(#sem)" stroke-dasharray="10 12">
+      <animate attributeName="stroke-dashoffset" from="88" to="0" dur="1.6s" repeatCount="indefinite"/>
+    </path>
+    <path d="M148 153 L 322 153" stroke="url(#lex)" stroke-dasharray="10 12">
+      <animate attributeName="stroke-dashoffset" from="88" to="0" dur="1.6s" begin="-.5s" repeatCount="indefinite"/>
+    </path>
+    <path d="M148 153 C 230 153, 240 240, 322 240" stroke="url(#est)" stroke-dasharray="10 12">
+      <animate attributeName="stroke-dashoffset" from="88" to="0" dur="1.6s" begin="-1s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- rótulos dos eixos -->
+  <g font-family="ui-sans-serif,system-ui,sans-serif" font-size="13">
+    <g transform="translate(322,48)">
+      <rect width="146" height="36" rx="9" fill="#161b22" stroke="#7c5cff" stroke-opacity=".55"/>
+      <circle cx="18" cy="18" r="5" fill="#7c5cff"><animate attributeName="r" values="5;7;5" dur="2.2s" repeatCount="indefinite"/></circle>
+      <text x="34" y="23" fill="#e6edf3">semântico</text>
+      <text x="118" y="23" fill="#8b949e" font-size="11">denso</text>
+    </g>
+    <g transform="translate(322,135)">
+      <rect width="146" height="36" rx="9" fill="#161b22" stroke="#2f81f7" stroke-opacity=".55"/>
+      <circle cx="18" cy="18" r="5" fill="#2f81f7"><animate attributeName="r" values="5;7;5" dur="2.2s" begin="-.7s" repeatCount="indefinite"/></circle>
+      <text x="34" y="23" fill="#e6edf3">léxico</text>
+      <text x="112" y="23" fill="#8b949e" font-size="11">esparso</text>
+    </g>
+    <g transform="translate(322,222)">
+      <rect width="146" height="36" rx="9" fill="#161b22" stroke="#2ea043" stroke-opacity=".55"/>
+      <circle cx="18" cy="18" r="5" fill="#2ea043"><animate attributeName="r" values="5;7;5" dur="2.2s" begin="-1.4s" repeatCount="indefinite"/></circle>
+      <text x="34" y="23" fill="#e6edf3">estrutural</text>
+      <text x="110" y="23" fill="#8b949e" font-size="11">MaxSim</text>
+    </g>
+  </g>
+
+  <!-- convergência para a fusão -->
+  <g fill="none" stroke-width="2.5" stroke-linecap="round" opacity=".85">
+    <path d="M468 66 C 540 66, 545 153, 600 153" stroke="#7c5cff" stroke-dasharray="8 10">
+      <animate attributeName="stroke-dashoffset" from="72" to="0" dur="1.4s" repeatCount="indefinite"/>
+    </path>
+    <path d="M468 153 L 600 153" stroke="#2f81f7" stroke-dasharray="8 10">
+      <animate attributeName="stroke-dashoffset" from="72" to="0" dur="1.4s" begin="-.45s" repeatCount="indefinite"/>
+    </path>
+    <path d="M468 240 C 540 240, 545 153, 600 153" stroke="#2ea043" stroke-dasharray="8 10">
+      <animate attributeName="stroke-dashoffset" from="72" to="0" dur="1.4s" begin="-.9s" repeatCount="indefinite"/>
+    </path>
+  </g>
+
+  <!-- núcleo de fusão: ondas de interferência -->
+  <g transform="translate(628,153)">
+    <circle r="20" fill="none" stroke="#7c5cff" stroke-width="2" opacity=".9">
+      <animate attributeName="r" values="20;40;20" dur="2.6s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values=".9;0;.9" dur="2.6s" repeatCount="indefinite"/>
+    </circle>
+    <circle r="20" fill="none" stroke="#2f81f7" stroke-width="2" opacity=".7">
+      <animate attributeName="r" values="20;40;20" dur="2.6s" begin="-.9s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values=".7;0;.7" dur="2.6s" begin="-.9s" repeatCount="indefinite"/>
+    </circle>
+    <circle r="18" fill="#161b22" stroke="#7c5cff" stroke-width="2" filter="url(#glow)"/>
+    <text y="6" font-family="ui-sans-serif,system-ui,sans-serif" font-size="16" fill="#e6edf3" text-anchor="middle">⚛</text>
+    <text y="46" font-family="ui-sans-serif,system-ui,sans-serif" font-size="12" fill="#8b949e" text-anchor="middle">fusão</text>
+  </g>
+
+  <!-- resultado: conjunto sem redundância -->
+  <g transform="translate(700,96)" font-family="ui-sans-serif,system-ui,sans-serif" font-size="11">
+    <g>
+      <rect width="132" height="26" rx="7" fill="#161b22" stroke="#2ea043"/>
+      <text x="12" y="18" fill="#e6edf3">fato A</text>
+      <animate attributeName="opacity" values="0;1" dur=".5s" begin="0s;5s" fill="freeze"/>
+    </g>
+    <g transform="translate(0,36)">
+      <rect width="132" height="26" rx="7" fill="#161b22" stroke="#30363d"/>
+      <text x="12" y="18" fill="#e6edf3">fato B</text>
+      <animate attributeName="opacity" values="0;1" dur=".5s" begin=".35s;5.35s" fill="freeze"/>
+    </g>
+    <g transform="translate(0,72)">
+      <rect width="132" height="26" rx="7" fill="#161b22" stroke="#30363d"/>
+      <text x="12" y="18" fill="#e6edf3">fato C</text>
+      <animate attributeName="opacity" values="0;1" dur=".5s" begin=".7s;5.7s" fill="freeze"/>
+    </g>
+    <text x="0" y="128" fill="#8b949e">sem duplicatas</text>
+  </g>
+</svg>
